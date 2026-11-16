@@ -48,7 +48,7 @@ export function loadRegistry(hqRoot) {
       slug: data.slug, title: data.title || data.slug, status: data.status || 'paused',
       repo: data.repo || null, localPath: data.local_path || null,
       channelId: str(channelConfig?.channel_id), devThreadId: str(channelConfig?.dev_thread_id),
-      servicePm: data.agents?.service_pm || {name: '서비스PM'}, devPm: data.agents?.dev_pm || {name: '개발PM'},
+      servicePm: data.agents?.service_pm || {name: 'Tony'}, devPm: data.agents?.dev_pm || {name: 'Cap'},
       gates: data.gates || [], body, file,
     };
     projects.push(p);
