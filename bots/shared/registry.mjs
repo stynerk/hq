@@ -42,10 +42,12 @@ export function loadRegistry(hqRoot) {
     const file = path.join(hqRoot, 'projects', f);
     const {data, body} = splitFrontmatter(fs.readFileSync(file, 'utf8'));
     if (data.slug !== path.basename(f, '.md')) { errors.push(`${f}: slug가 파일 이름과 다르다`); continue; }
+    // New IDs live only in config/discord.md. Read legacy project metadata until migrated.
+    const channelConfig = Object.hasOwn(discord.project_channels || {}, data.slug) ? discord.project_channels[data.slug] : data.discord;
     const p = {
       slug: data.slug, title: data.title || data.slug, status: data.status || 'paused',
       repo: data.repo || null, localPath: data.local_path || null,
-      channelId: str(data.discord?.channel_id), devThreadId: str(data.discord?.dev_thread_id),
+      channelId: str(channelConfig?.channel_id), devThreadId: str(channelConfig?.dev_thread_id),
       servicePm: data.agents?.service_pm || {name: '서비스PM'}, devPm: data.agents?.dev_pm || {name: '개발PM'},
       gates: data.gates || [], body, file,
     };

@@ -12,6 +12,8 @@
 
 ## 현재 범위
 
+- 새 Discord 채널·스레드 ID는 `config/discord.md`의 `project_channels.<slug>`에만 저장한다. 기존 `projects/*.md`의 ID는 이전 설정 호환을 위해 읽기만 하며 `!hq init`은 프로젝트 파일을 수정하지 않는다. 새 설정이 있으면 그 값을 우선하고 null도 존중한다. 새 프로젝트 파일에는 실제 ID를 쓰지 않는다.
+
 - onemorestep 먼저 전환. Our Adventure는 paused 유지, 그다음 이전.
 - Git 규칙 정본 유지. 소라=서비스PM(Claude), Cap=개발PM(Codex).
 - bots-v1 PR 검토 후 서비스PM 승인·개발 QA를 거쳐 main 병합. 사용자 PC 설치와 서버 재구성은 그다음.

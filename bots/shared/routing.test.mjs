@@ -26,6 +26,21 @@ const OWNER = '565583270448988163', CLAUDE = '1563042220230053928', CODEX = '156
 const OMS = '1570085138774233170', G = '1563042660044775486';
 const msg = (o = {}) => ({author: {id: OWNER, bot: false}, guildId: G, channel: {id: OMS}, content: 'hi', ...o});
 
+test('central project channel IDs override legacy project IDs and reload independently', () => {
+  const dir = fixture();
+  try {
+    updateFrontmatter(path.join(dir,'config','discord.md'), d => { d.project_channels={onemorestep:{channel_id:'central-main',dev_thread_id:'central-dev'}}; });
+    const registry=new Registry(dir,{intervalMs:0});const reg=registry.get();
+    assert.equal(reg.byChannel.get('central-main').project.slug,'onemorestep');
+    assert.equal(reg.byChannel.get('central-dev').kind,'dev');assert.equal(reg.byChannel.has(OMS),false);
+    const route=classify(msg({channel:{id:'central-dev'},author:{id:CLAUDE,bot:true},content:`<@${CODEX}> TASK_READY #1`}),{self:'codex',reg});assert.equal(route.mode,'execute');
+    updateFrontmatter(path.join(dir,'config','discord.md'),d=>{d.project_channels.onemorestep={channel_id:null,dev_thread_id:null};});
+    registry.reload();assert.equal(registry.get().projects.find(p=>p.slug==='onemorestep').channelId,null);assert.equal(registry.get().byChannel.has(OMS),false);
+    updateFrontmatter(path.join(dir,'config','discord.md'),d=>{d.project_channels.onemorestep=null;});
+    registry.reload();assert.equal(registry.get().byChannel.has(OMS),false);
+  }finally{fs.rmSync(dir,{recursive:true,force:true});}
+});
+
 test('queued project work is cancelled when the registry pauses its project', () => {
   const dir = fixture();
   try {
