@@ -18,6 +18,7 @@ test('relay instructions use registry identities despite legacy project guidance
  assert.ok(text.includes('<@current-cap> TASK_READY #번호'));
  assert.ok(text.indexOf('Legacy PM_Sora')<text.indexOf('현재 hq 레지스트리'));
  assert.ok(text.includes('최종 답은 릴레이가')&&text.includes('디스코드 도구(fetch_messages'));
+ assert.ok(text.includes('로컬에만 커밋을 남기지 않는다'));
  assert.ok(text.indexOf('첫 줄을 아래 인계 형식')<text.indexOf('<@current-cap> TASK_READY #번호'));
 });
 
@@ -65,6 +66,11 @@ test('service worktree follows merged main and preserves dirty or squash-diverge
   const serviceHead=await git(service,'rev-parse','HEAD');
   await assert.rejects(serviceWorkspace(project),/갈라졌습니다.*squash/);
   assert.equal(await git(service,'rev-parse','HEAD'),serviceHead);
+  // Once the local commit is pushed to a remote branch, nothing is lost: reset to main.
+  await git(service,'push','origin','HEAD:refs/heads/tony/policy');
+  await serviceWorkspace(project);
+  assert.equal(await git(service,'rev-parse','HEAD'),await git(seed,'rev-parse','HEAD'));
+  assert.equal(fs.readFileSync(path.join(service,'saved-local-work.txt'),'utf8'),'preserve me');
   assert.equal(fs.readFileSync(path.join(service,'saved-local-work.txt'),'utf8'),'preserve me');
  }finally{fs.rmSync(root,{recursive:true,force:true});}
 });
