@@ -9,7 +9,7 @@
 | 0 | 드라이브·저장소 문서 대응표 | 완료 (2026-11-16) |
 | 1 | hq 골격: playbooks, 에이전트 정의, 레지스트리, 템플릿, 공통 기록 | 완료 (2026-11-16) |
 | 2 | onemorestep 저장소 문서 전환 (HJ 결정으로 순서 변경) | 완료 (2026-11-16, onemorestep `1e6f629`) |
-| 3 | 봇: Codex 브릿지 레지스트리화·채널별 병렬, Claude 릴레이, 서브에이전트 내보내기, 자동 실행 | 진행 중 |
+| 3 | 봇: Codex 브릿지 레지스트리화·채널별 병렬, Claude 릴레이, 서브에이전트 내보내기, 자동 실행 | 진행 중 (브랜치 `bots-v1`, ChatGPT/Codex가 이어받음: [docs/HANDOFF_SETUP.md](docs/HANDOFF_SETUP.md)) |
 | 4 | 디스코드 재구성과 `!project new`, onemorestep 봇 전환 | 대기 |
 | 5 | 처음부터 끝까지 검증 | 대기 |
 | 6 | Our Adventure를 표준 구조로 이전하고 전환 | 대기 |
