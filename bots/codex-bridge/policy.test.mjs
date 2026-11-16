@@ -4,7 +4,7 @@ import {executionContext, trustedAttachmentSource, canRequestApproval} from './p
 
 function fixture() {
   const project = {slug:'one',localPath:'/workspace/one',body:'Project policy',devPm:{name:'Cap'}};
-  const reg = {hqRoot:'/workspace/hq',errors:[],agents:new Map([['dev-pm',{body:'Developer policy'}]]),ownerId:'owner',claudeBotId:'claude',byChannel:new Map([['dev',{project,kind:'dev'}],['main',{project,kind:'main'}]])};
+  const reg = {hqRoot:'/workspace/hq',errors:[],agents:new Map([['dev-pm',{body:'Developer policy'}]]),ownerId:'owner',claudeBotId:'claude',codexBotId:'codex',byChannel:new Map([['dev',{project,kind:'dev'}],['main',{project,kind:'main'}]])};
   const route = {lane:'one',project,role:'dev-pm',mode:'owner',text:'Implement approved task'};
   return {reg,route,project};
 }
@@ -21,6 +21,14 @@ test('execute includes exact Issue and rejects registry errors',()=>{
   const {reg,route} = fixture();
   assert.match(executionContext({...route,mode:'execute',keyword:{issue:17}},reg).text,/Issue #17/);
   assert.throws(()=>executionContext(route,{...reg,errors:['duplicate channel']}),/레지스트리/);
+});
+
+test('developer instructions direct review handoffs to the current relay identity',()=>{
+  const {reg,route}=fixture();
+  const instructions=executionContext(route,{...reg,claudeBotId:'current-relay',codexBotId:'current-cap'}).developerInstructions;
+  assert.ok(instructions.includes('<@current-relay> REVIEW_REQUEST #번호'));
+  assert.ok(instructions.includes('너의 멘션은 <@current-cap>'));
+  assert.throws(()=>executionContext(route,{...reg,claudeBotId:null}),/봇 ID/);
 });
 test('read-only and unknown turns cannot request elevated approval',()=>{
   for (const active of [null,{}, {readOnly:true,sandbox:'read-only'},{readOnly:true,sandbox:'workspace-write'},{readOnly:false,sandbox:'read-only'},{readOnly:false,sandbox:'danger-full-access'}]) assert.equal(canRequestApproval(active),false);

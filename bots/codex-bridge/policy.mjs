@@ -1,4 +1,5 @@
 import {locate} from '../shared/registry.mjs';
+import {botIdentityInstructions} from '../shared/bot-context.mjs';
 // Fail closed when an active turn does not explicitly identify a writable sandbox.
 export function canRequestApproval(active) {
   return !!active && active.readOnly === false && active.sandbox === 'workspace-write';
@@ -7,7 +8,7 @@ export function executionContext(route, reg) {
   const readOnly = route.mode === 'consult' || route.role === 'hq-reader';
   const cwd = route.project?.localPath || reg.hqRoot;
   if (!cwd || reg.errors.length) throw new Error('작업 경로 또는 레지스트리가 유효하지 않습니다.');
-  const role = reg.agents.get(route.role === 'hq-reader' ? 'dev-pm' : route.role)?.body || '';
+  const role = [reg.agents.get(route.role === 'hq-reader' ? 'dev-pm' : route.role)?.body || '', botIdentityInstructions(reg, 'codex')].join('\n\n');
   const name = route.project?.devPm?.name || '개발PM';
   return {
     cwd, sandbox: readOnly ? 'read-only' : 'workspace-write',

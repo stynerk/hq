@@ -4,9 +4,42 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {EventEmitter} from 'node:events';
-import {LaneQueue,claudeArgs,runClaude,importedToken} from './runtime.mjs';
+import {execFile} from 'node:child_process';
+import {promisify} from 'node:util';
+import {LaneQueue,claudeArgs,runClaude,importedToken,relayInstructions,serviceWorkspace} from './runtime.mjs';
 import {validateProject} from './provision.mjs';
 const tick=()=>new Promise(r=>setImmediate(r));
+
+test('relay instructions use registry identities despite legacy project guidance',()=>{
+ const reg={agents:new Map([['service-pm',{body:'Service policy'}]]),claudeBotId:'current-sora',codexBotId:'current-cap'};
+ const route={role:'service-pm',mode:'owner',project:{body:'Legacy PM_Sora <@retired>',servicePm:{name:'Sora'}}};
+ const text=relayInstructions(route,reg);
+ assert.ok(text.includes('너의 멘션은 <@current-sora>'));
+ assert.ok(text.includes('<@current-cap> TASK_READY #번호'));
+ assert.ok(text.indexOf('Legacy PM_Sora')<text.indexOf('현재 hq 레지스트리'));
+});
+
+test('service worktree fetches current origin main and preserves stale local work',async()=>{
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'hq-service-'));
+ const exec=promisify(execFile);
+ const git=async(cwd,...args)=>(await exec('git',['-c','user.name=Test','-c','user.email=test@example.invalid','-C',cwd,...args])).stdout.trim();
+ try{
+  const origin=path.join(root,'origin.git'),seed=path.join(root,'seed'),repo=path.join(root,'project');
+  fs.mkdirSync(seed);await git(root,'init','--bare',origin);await git(seed,'init','-b','main');
+  fs.writeFileSync(path.join(seed,'policy.txt'),'legacy');await git(seed,'add','.');await git(seed,'commit','-m','Legacy policy');await git(seed,'remote','add','origin',origin);await git(seed,'push','origin','main');
+  await git(root,'clone','--branch','main',origin,repo);
+  fs.writeFileSync(path.join(seed,'policy.txt'),'hq policy');await git(seed,'commit','-am','HQ policy');await git(seed,'push','origin','main');
+  assert.equal(fs.readFileSync(path.join(repo,'policy.txt'),'utf8'),'legacy');
+  const project={slug:'demo',localPath:repo};const service=await serviceWorkspace(project);
+  assert.equal(fs.readFileSync(path.join(service,'policy.txt'),'utf8'),'hq policy');
+  assert.equal(fs.readFileSync(path.join(repo,'policy.txt'),'utf8'),'legacy');
+  fs.writeFileSync(path.join(service,'local-work.txt'),'preserve me');
+  fs.writeFileSync(path.join(seed,'policy.txt'),'updated hq policy');await git(seed,'commit','-am','Update policy');await git(seed,'push','origin','main');
+  await assert.rejects(serviceWorkspace(project),/오래됐습니다/);
+  assert.equal(fs.readFileSync(path.join(service,'local-work.txt'),'utf8'),'preserve me');
+  assert.equal(fs.readFileSync(path.join(service,'policy.txt'),'utf8'),'hq policy');
+ }finally{fs.rmSync(root,{recursive:true,force:true});}
+});
 test('lane queues serialize locally, permit independent projects, reject duplicate message IDs',async()=>{
  const q=new LaneQueue();let release;const wait=new Promise(r=>release=r);let order=[];
  assert.equal(q.enqueue('a','1',async()=>{order.push('a1');await wait;}),true);
