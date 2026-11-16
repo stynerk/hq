@@ -12,12 +12,12 @@
 | 3 | 봇: Codex 브릿지 레지스트리화·채널별 병렬, Claude 릴레이, 서브에이전트 내보내기, 자동 실행 | 완료 (2026-11-17, onemorestep 기준). 서브에이전트 내보내기는 미확인 |
 | 4 | 디스코드 재구성과 `!project new`, onemorestep 봇 전환 | onemorestep 전환 완료 (2026-11-17 HJ 확정). `!project new`는 6단계에서 검증 |
 | 5 | 처음부터 끝까지 검증 | onemorestep 완료 (HANDOFF_SETUP §5-3 전 항목 통과, 아래 기록) |
-| 6 | Our Adventure를 표준 구조로 이전하고 전환 | 대기 |
+| 6 | Our Adventure를 표준 구조로 이전하고 전환 | 진행 중 (2026-11-17, Tony·Cap. ouradventure #33~#35, PR #32) |
 
 ## 6단계: Our Adventure (원래 2단계)
 
-- [ ] 미커밋 변경을 `backup/2026-11-16-local` 브랜치에 커밋하고 push, 본 폴더를 `main`으로 전환
-- [ ] `.worktrees/`의 일회성 스크립트·PR 본문·커밋 메시지 파일을 `_to_delete/`로 옮긴 뒤 삭제. Git 작업 트리는 병합 여부 확인 후 `git worktree remove`
+- [x] 미커밋 변경을 `backup/2026-11-16-local` 브랜치에 커밋하고 push, 본 폴더를 `main`으로 전환 (Cap, #33: 184개 파일)
+- [ ] `.worktrees/`의 일회성 스크립트·PR 본문·커밋 메시지 파일을 `_to_delete/`로 옮긴 뒤 삭제. Git 작업 트리는 병합 여부 확인 후 `git worktree remove` (작업 트리 16개·파일 149개 정리 완료. `test-tools`는 인증·운영 파일이 있어 HJ 결정 대기)
 - [x] `.worktrees/discord-collaboration-draft.md`를 hq `docs/history/`에 사본으로 보관 (원본은 위 정리 때 함께 삭제)
 - [ ] 문서 이동: `docs/product/`(PRD v2, AI 코스 가이드), `docs/qa/`, `docs/tech/`(Firebase, T0, 경주 AI 핸드오버), `docs/reference/`(경주 일정), `docs/archive/`(Phase 1 계열 7개, 이전 인수인계, 루트의 PROJECT_INSTRUCTIONS·PROJECT_HANDOFF·NEW_PROJECT_START_PROMPT)
 - [ ] `docs/MVP_TICKETS.md`의 T0~T12를 GitHub Issue로 옮기고 문서는 아카이브
@@ -46,7 +46,7 @@
 - [ ] 기존 채널을 ARCHIVE로 이동 (#onemorestep은 11-25까지 그대로)
 - [ ] GitHub 웹훅을 #hq-alerts로 (HJ)
 - [ ] 테스트 프로젝트로 `!project new` → `TASK_READY` → PR → 검토 → QA → 병합까지 한 번. 같은 메시지 재전송 시 중복 실행 0건, `!stop` 이후 새 실행 0건
-- [ ] Our Adventure 채널 생성과 전환
+- [x] Our Adventure 채널 생성 (`!project new`, 2026-11-17, hq `ceb0167`). 전환은 6단계
 
 ## onemorestep 운영 검증 기록 (HANDOFF_SETUP 5-3, 2026-11-17 전환 완료)
 
