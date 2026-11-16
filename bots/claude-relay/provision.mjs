@@ -48,7 +48,7 @@ export async function newProject({guild,reg,hqRoot,slug,repo,reload=()=>{}}){
   const file=path.join(hqRoot,'projects',slug+'.md');const exists=reg.projects.find(p=>p.slug===slug);
   if(exists&&exists.repo!==repo)throw new Error('이미 다른 저장소에 연결된 slug입니다.');
   const parent=reg.discord.categories?.projects;if(!parent)throw new Error('먼저 !hq init을 실행하세요.');
-  if(!fs.existsSync(file))fs.writeFileSync(file,joinFrontmatter({slug,title:slug,status:'active',repo,local_path:path.join(path.dirname(hqRoot),slug).replaceAll('\\','/'),discord:{channel_id:null,dev_thread_id:null},agents:{service_pm:{name:'서비스PM',persona:null},dev_pm:{name:'개발PM',persona:null}},gates:[]},`\n# ${slug}\n\n신규 프로젝트. 목표·범위·성공 지표는 총괄이 playbooks/new-project.md에 따라 정리한다.\n`));
+  if(!fs.existsSync(file))fs.writeFileSync(file,joinFrontmatter({slug,title:slug,status:'active',repo,local_path:path.join(path.dirname(hqRoot),slug).replaceAll('\\','/'),discord:{channel_id:null,dev_thread_id:null},agents:{service_pm:{name:'Tony',persona:null},dev_pm:{name:'Cap',persona:null}},gates:[]},`\n# ${slug}\n\n신규 프로젝트. 목표·범위·성공 지표는 총괄이 playbooks/new-project.md에 따라 정리한다.\n`));
   await guild.channels.fetch();let channel=exists?.channelId?await guild.channels.fetch(exists.channelId):guild.channels.cache.find(c=>c.type===0&&c.name===slug);
   if(!channel)channel=await guild.channels.create({name:slug,type:0,parent,reason:'HJ !project new'});
   const configFile=path.join(hqRoot,'config','discord.md');
