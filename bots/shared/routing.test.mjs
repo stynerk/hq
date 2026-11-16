@@ -153,6 +153,8 @@ test('peer bot: execute only with keyword + issue number, otherwise consult', ()
   const fromCodex = content => msg({author: {id: CODEX, bot: true}, channel: {id: '777'}, content});
   assert.equal(classify(fromCodex(`<@${CLAUDE}> REVIEW_REQUEST #12`), {self: 'claude', reg}).mode, 'execute');
   assert.equal(classify(fromCodex(`<@${CLAUDE}> TASK_READY #12`), {self: 'claude', reg}).mode, 'consult');
+  const multi = classify(fromCodex(`작업을 마쳤습니다. PR #14를 열었습니다.\n<@${CLAUDE}> REVIEW_REQUEST #13\n된 것: 문서 한 파일`), {self: 'claude', reg});
+  assert.equal(multi.mode, 'execute'); assert.deepEqual(multi.keyword, {keyword: 'REVIEW_REQUEST', issue: 13});
 });
 
 test('other bots, webhooks, self, other guilds, alerts, archive are ignored', () => {
@@ -203,6 +205,11 @@ test('ExchangeCounter resets on owner and counts bots per channel', () => {
 test('parseKeyword and chunk', () => {
   assert.equal(parseKeyword('QA_READY #3', ['QA_READY']).issue, 3);
   assert.equal(parseKeyword('참고 QA_READY #3', ['QA_READY']), null);
+  // 진행 경과 뒤 줄에 온 인계는 실행으로 받는다 (Codex 브릿지 출력 형태)
+  assert.deepEqual(parseKeyword('커밋과 push 완료.\nREVIEW_REQUEST #13\n된 것: PR #14', ['REVIEW_REQUEST']), {keyword: 'REVIEW_REQUEST', issue: 13});
+  // 문장 중간의 키워드, 번호가 다른 줄에만 있는 키워드는 무시
+  assert.equal(parseKeyword('다음에 REVIEW_REQUEST #13 보낼게요', ['REVIEW_REQUEST']), null);
+  assert.equal(parseKeyword('REVIEW_REQUEST\n#13', ['REVIEW_REQUEST']), null);
   const parts = chunk('a'.repeat(1000) + '\n' + 'b'.repeat(1000) + '\n' + 'c'.repeat(4000));
   assert.ok(parts.every(p => p.length <= 1900));
   assert.equal(parts.join('').replace(/\n/g, '').length, 6000);

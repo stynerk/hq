@@ -23,11 +23,19 @@ export function refreshProjectRoute(route, reg, channel) {
 }
 
 /** 키워드가 첫 단어이고 Issue 번호(#숫자)가 있으면 {keyword, issue}. */
+/**
+ * 어느 줄이든 줄의 첫 단어가 키워드이고 같은 줄에 Issue 번호(#숫자)가 있으면 {keyword, issue}.
+ * Codex 브릿지는 진행 경과와 인계를 한 메시지로 올리므로 인계 줄이 맨 앞이 아닐 수 있다
+ * (2026-11-17 운영 검증: REVIEW_REQUEST가 중간 줄에 있어 협의로 처리됨). 문장 중간의 키워드는 무시한다.
+ */
 export function parseKeyword(text, allowed) {
-  const first = text.trim().split(/\s+/)[0] || '';
-  if (!allowed.includes(first)) return null;
-  const m = /#(\d+)/.exec(text);
-  return m ? {keyword: first, issue: Number(m[1])} : null;
+  for (const line of String(text || '').split(/\r?\n/)) {
+    const first = line.trim().split(/\s+/)[0] || '';
+    if (!allowed.includes(first)) continue;
+    const m = /#(\d+)/.exec(line);
+    if (m) return {keyword: first, issue: Number(m[1])};
+  }
+  return null;
 }
 
 /** 채널마다 HJ 메시지 이후 봇끼리 주고받은 수를 센다. */
