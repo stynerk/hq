@@ -48,6 +48,24 @@
 - [ ] 테스트 프로젝트로 `!project new` → `TASK_READY` → PR → 검토 → QA → 병합까지 한 번. 같은 메시지 재전송 시 중복 실행 0건, `!stop` 이후 새 실행 0건
 - [ ] Our Adventure 채널 생성과 전환
 
+## onemorestep 운영 검증 기록 (HANDOFF_SETUP 5-3, 전환 미완료)
+
+2026-11-17 기준. 전환 완료 판정은 미검증 항목이 모두 통과한 뒤 HJ가 한다.
+
+| 항목 | 판정 | 근거 |
+|---|---|---|
+| #onemorestep 기본 응답은 소라만 | 통과 | |
+| Cap은 멘션·답장·`!codex`에만 응답 | 통과 | |
+| ARCHIVE 채널 무시 | 통과 | 카테고리 밖 미등록 채널은 미검증 |
+| `!stop` 대기열 취소 | 통과 | |
+| 키워드 없는 협의는 읽기 전용 | 통과 | |
+| dev 인계 전 구간 자동 | 통과 | #15: TASK_READY → REVIEW_REQUEST → QA_READY → QA_RESULT를 HJ 개입 없이, PR #16 merge `94480f6`. #13에서는 Cap 신호가 첫 줄이 아니라 실패했고 hq PR #5로 수정 |
+| 같은 메시지 재전송 시 중복 실행 0건 | 미검증 | |
+| 재로그인·재부팅 뒤 자동 시작, 중복 없음 | 미검증 | `Stop-ScheduledTask`가 node 자식을 남기는 결함 확인(아래) |
+| 로그에 자격 증명 없음 | 통과 | 메시지 처리 기록도 남지 않음 |
+
+후속 수정 후보: `run.ps1` 종료 시 node 자식 정리, 메시지 처리 로그(내용·비밀 제외), Codex 기본 완료 문구, 릴레이 첨부파일 지원, 소라 작업 트리 pull, `playbooks/discord.md` 3절 문구(키워드는 어느 줄 맨 앞이든) 총괄 수정안.
+
 ## HJ가 직접 할 일
 
 - [ ] ChatGPT 프로젝트(One More Step, OurAdventure) 지침을 hq 링크만 남기도록 수정
