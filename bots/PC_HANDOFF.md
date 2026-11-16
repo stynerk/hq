@@ -2,6 +2,13 @@
 
 작성 기준: 2026-11-16. 클라우드에서 봇 코드와 오프라인 테스트를 준비했다. Windows PC·Discord·Claude/Codex 로그인은 여기서 실행하지 않았다. 구조 전환 완료로 처리하지 않는다.
 
+## 2026-11-16 PC 사전 검증
+
+- Node 24.20.0, Claude Code 2.1.325, Codex CLI 0.169.0을 확인했다. Windows에서 `npm ci`, 전체 테스트 61개, `.mjs` 구문 검사와 `git diff --check`가 통과했다. 실제 봇 연결과 로그온 자동 실행은 아직 검증하지 않았다.
+- 독립 QA에서 paused 프로젝트가 채널 생성·작업 실행 대상에 포함되는 결함을 찾아 수정했다. `!hq init`은 active 프로젝트만 구성하고 paused 프로젝트의 기존 채널은 그대로 둔다. 두 봇은 paused 메시지와 대기 작업을 거부한다. 회귀 테스트 3개를 추가했다.
+- onemorestep issue-9는 커밋된 작업이며 최초 확인 시 미커밋 변경이 없었다. OurAdventure의 미커밋 작업과 양쪽 로컬 설정은 Git 밖 비공개 체크포인트에 복사하고 SHA-256으로 대조했다. 기존 봇·토큰·프로젝트 작업은 삭제하지 않았다.
+- active onemorestep의 로컬 JSON은 이미 유효하다. paused OurAdventure의 옛 ensure-relay hook은 재개 전에 백업 후 제거해야 한다. 서비스PM 승인·main 병합 뒤에만 설치한다.
+
 ## 현재 범위
 
 - onemorestep 먼저 전환. Our Adventure는 paused 유지, 그다음 이전.

@@ -13,6 +13,15 @@ const mentionRe = id => new RegExp(`<@!?${id}>`, 'g');
 const mentions = (text, id) => !!id && mentionRe(id).test(text);
 const stripMention = (text, id) => (id ? text.replace(mentionRe(id), '') : text).trim();
 
+export function refreshProjectRoute(route, reg, channel) {
+  if (!route.project) return route;
+  const fresh = locate(reg, channel);
+  if (!fresh || fresh.project.slug !== route.lane || fresh.project.status !== 'active') {
+    throw new Error('대기 중 프로젝트 등록이 변경되어 작업을 취소했습니다.');
+  }
+  return {...route, project: fresh.project};
+}
+
 /** 키워드가 첫 단어이고 Issue 번호(#숫자)가 있으면 {keyword, issue}. */
 export function parseKeyword(text, allowed) {
   const first = text.trim().split(/\s+/)[0] || '';
@@ -79,6 +88,7 @@ export function classify(m, {self, reg, repliesToSelf = false, exchangeCount = 0
   }
   const {project, kind: place} = where;
   if (project.status === 'archived') return ignore('archived');
+  if (project.status !== 'active') return ignore('inactive-project');
   const lane = project.slug;
   const role = self === 'claude' ? 'service-pm' : 'dev-pm';
   const base = {lane, role, project, place};

@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {loadRegistry, Registry, updateFrontmatter, splitFrontmatter, locate} from './registry.mjs';
-import {classify, parseKeyword, ExchangeCounter, chunk, BOT_EXCHANGE_LIMIT} from './routing.mjs';
+import {classify, parseKeyword, ExchangeCounter, chunk, BOT_EXCHANGE_LIMIT, refreshProjectRoute} from './routing.mjs';
 
 const hqRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -25,6 +25,35 @@ function fixture() {
 const OWNER = '565583270448988163', CLAUDE = '1563042220230053928', CODEX = '1563059804082282516';
 const OMS = '1570085138774233170', G = '1563042660044775486';
 const msg = (o = {}) => ({author: {id: OWNER, bot: false}, guildId: G, channel: {id: OMS}, content: 'hi', ...o});
+
+test('queued project work is cancelled when the registry pauses its project', () => {
+  const dir = fixture();
+  try {
+    const route = classify(msg(), {self: 'claude', reg: loadRegistry(dir)});
+    assert.equal(refreshProjectRoute(route, loadRegistry(dir), msg().channel).project.status, 'active');
+    updateFrontmatter(path.join(dir, 'projects', 'onemorestep.md'), d => { d.status = 'paused'; });
+    assert.throws(() => refreshProjectRoute(route, loadRegistry(dir), msg().channel), /프로젝트 등록이 변경/);
+    assert.deepEqual(refreshProjectRoute({lane: 'hq', project: null}, loadRegistry(dir), {}), {lane: 'hq', project: null});
+  } finally { fs.rmSync(dir, {recursive: true, force: true}); }
+});
+
+test('paused projects reject owner messages, commands, and peer handoffs for both bots', () => {
+  const dir = fixture();
+  try {
+    updateFrontmatter(path.join(dir, 'projects', 'our-adventure.md'), d => { d.discord.dev_thread_id = '556'; });
+    const reg = loadRegistry(dir);
+    for (const self of ['claude', 'codex']) {
+      const target = self === 'claude' ? CLAUDE : CODEX;
+      const peer = self === 'claude' ? CODEX : CLAUDE;
+      for (const message of [
+        msg({channel: {id: '555'}, content: `<@${target}> hi`}),
+        msg({channel: {id: '557', parentId: '555'}, content: `<@${target}> hi`}),
+        msg({channel: {id: '556'}, content: `<@${target}> !status`}),
+        msg({channel: {id: '556'}, author: {id: peer, bot: true}, content: `<@${target}> ${self === 'claude' ? 'REVIEW_REQUEST' : 'TASK_READY'} #1`}),
+      ]) assert.deepEqual(classify(message, {self, reg}), {kind: 'ignore', reason: 'inactive-project'});
+    }
+  } finally { fs.rmSync(dir, {recursive: true, force: true}); }
+});
 
 test('real hq registry parses and has no errors', () => {
   const reg = loadRegistry(hqRoot);

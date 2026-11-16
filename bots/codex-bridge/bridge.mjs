@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import { chunks } from './rpc.mjs';
 import {Registry, locate} from '../shared/registry.mjs';
-import {classify, ExchangeCounter} from '../shared/routing.mjs';
+import {classify, ExchangeCounter, refreshProjectRoute} from '../shared/routing.mjs';
 import {LaneJobs} from '../shared/lane-jobs.mjs';
 import {executionContext, trustedAttachmentSource, canRequestApproval} from './policy.mjs';
 import { ProfileServers, selectProfile, profileSessionKey } from './profiles.mjs';
@@ -212,11 +212,7 @@ async function executeMessage(m, route, lane) {
   const epoch = lane.epoch;
   try {
     const reg = registry.get();
-    if (route.project) {
-      const fresh = locate(reg, m.channel);
-      if (!fresh || fresh.project.slug !== route.lane || fresh.project.status === 'archived') throw new Error('대기 중 프로젝트 등록이 변경되어 작업을 취소했습니다.');
-      route = {...route, project: fresh.project};
-    }
+    route = refreshProjectRoute(route, reg, m.channel);
     const ctx = executionContext(route, reg);
     const key = `${route.lane}|${m.channel.id}|${ctx.sandbox === 'read-only' ? 'read' : 'write'}`;
     const attachmentScope = `${key}|owner:${reg.ownerId}|bot:${reg.codexBotId}`;

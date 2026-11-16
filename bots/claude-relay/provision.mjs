@@ -25,7 +25,11 @@ export async function initHQ({guild,reg,hqRoot,reload=()=>{}}){
   };
   const home=await text('hq','hq',hq);const alerts=await text('hq_alerts','hq-alerts',hq);const keep=new Set([home.id,alerts.id]);
   for(const p of reg.projects){
-    if(p.status==='archived')continue;
+    if(p.status!=='active'){
+      // Preserve existing paused channels in place, without provisioning or enabling them.
+      if(p.channelId)keep.add(p.channelId);
+      continue;
+    }
     let ch=p.channelId?await guild.channels.fetch(p.channelId):guild.channels.cache.find(x=>x.type===0&&x.name===p.slug);
     if(!ch)ch=await guild.channels.create({name:p.slug,type:0,parent:projects.id,reason:'HJ !hq init'});
     keep.add(ch.id);if(ch.parentId!==projects.id)await ch.setParent(projects.id,{lockPermissions:false});
