@@ -8,7 +8,7 @@ bots:
     name: Tony
     user_id: "1563042220230053928"
     verified: true
-    role: CPO Tony. #hq 총괄과 모든 프로젝트의 서비스PM (옛 이름 HJ Company, 2026-11-17 변경)
+    role: CPO Tony.
   codex_bridge:
     name: Cap
     user_id: "1563059804082282516"
@@ -30,6 +30,9 @@ project_channels:
   onemorestep:
     channel_id: "1570085138774233170"
     dev_thread_id: "1571771769461809153"
+  our-adventure:
+    channel_id: "1572005322837725184"
+    dev_thread_id: "1572005326054629397"
 ---
 
 # 디스코드 ID
