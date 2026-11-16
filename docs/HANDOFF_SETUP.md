@@ -57,7 +57,7 @@ HJ
 
 **Codex 브릿지 개편 (`codex-bridge/bridge.mjs`)**
 1. `private` 폴더는 환경 변수 `BRIDGE_PRIVATE_DIR`, 기본값 `C:/Users/styne/orca/discord-codex/private` (기존 토큰·세션 재사용). hq 경로는 `HQ_ROOT`, 기본값 `C:/Users/styne/orca/hq`.
-2. `handleMessage` 앞단을 `Registry` + `classify(self:'codex')`로 교체. `channelInput`/`trustedHandoff`/`allChannels`/`channelWorkspaces` 의존 제거. 등록 안 된 채널은 실행 거부(`unregistered`면 한 줄 안내).
+2. `handleMessage` 앞단을 `Registry` + `classify(self:'codex')`로 교체. `channelInput`/`trustedHandoff`/`allChannels`/`channelWorkspaces` 의존 제거. 등록 안 된 채널은 실행 거부(`unregistered`면 채널에는 답하지 않고, #hq 알림은 Claude 릴레이가 한 번).
 3. 작업 폴더 = `project.localPath`. DM(`hq-reader`)은 hq 폴더, `sandbox: 'read-only'`.
 4. `mode: consult`(키워드 없는 봇 협의)는 `sandbox: 'read-only'`로 답만. `execute`는 `workspace-write`, 앞에 "Issue #N을 hq agents/dev-pm.md 흐름대로 처리" 지시.
 5. `developerInstructions`에 hq `agents/dev-pm.md` 본문 + `projects/<slug>.md` 본문 + 페르소나 이름(`project.devPm.name`)을 넣는다. 기존 안전 문구(첨부, 자격 증명, 승인)는 유지.
