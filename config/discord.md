@@ -10,10 +10,10 @@ bots:
     verified: true
     role: CPO Tony. #hq 총괄과 모든 프로젝트의 서비스PM (옛 이름 HJ Company, 2026-11-17 변경)
   codex_bridge:
-    name: Codex_bot
+    name: Cap
     user_id: "1563059804082282516"
     verified: true
-    role: CTO Cap. 모든 프로젝트의 개발PM
+    role: CTO Cap. 모든 프로젝트의 개발PM (옛 이름 Codex_bot, 2026-11-17 변경)
   retiring:
     - name: PM_Sora
       user_id: "1570101648054034522"
