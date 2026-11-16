@@ -9,7 +9,7 @@ discord:
   dev_thread_id: null
 agents:
   service_pm:
-    name: 소라
+    name: Tony
     persona: 기본 페르소나와 같다. 대회 배점(문제 정의 30, 완성도 30, Liner API 활용 20, 확장성과 임팩트 20)으로 모든 산출물을 설명한다.
   dev_pm:
     name: Cap
@@ -59,5 +59,5 @@ gates:
 - [x] 저장소 문서 전환 (onemorestep `1e6f629`): `CLAUDE.md`·`AGENTS.md`를 hq 기준으로, `HANDOFF_CTO.md` → `HANDOFF_DEV.md`, `HANDOFF_SERVICE.md` 신설, `ROLE_PM.md`·`WORKFLOW.md`는 `docs/archive/`, `DECISIONS.md` 정본화, 공통 LEARNINGS를 hq로
 - [ ] `qa`, `release-ready` 라벨 생성 (Cap)
 - [ ] 열린 브랜치 정리: `issue-7-web-mockup`, `issue-9-api-providers`, `design-main-home-wireframes` (새 main에 충돌 없이 병합되는 것 확인함)
-- [ ] 새 봇 전환: Claude 릴레이(소라), Codex 브릿지 레지스트리화(Cap), dev 스레드 생성. 전환되면 `CLAUDE.md`·`AGENTS.md`의 "전환 기간" 절을 지운다
+- [ ] 새 봇 전환: Claude 릴레이(Tony), Codex 브릿지 레지스트리화(Cap), dev 스레드 생성. 전환되면 `CLAUDE.md`·`AGENTS.md`의 "전환 기간" 절을 지운다
 - [ ] PC 본 폴더를 `main`으로 두고 역할별 작업 트리로 분리 (지금 본 폴더는 Cap의 `issue-9-api-providers` 브랜치)

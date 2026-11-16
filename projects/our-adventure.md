@@ -9,10 +9,10 @@ discord:
   dev_thread_id: null
 agents:
   service_pm:
-    name: 서비스PM
+    name: Tony
     persona: null
   dev_pm:
-    name: 개발PM
+    name: Cap
     persona: null
 gates:
   - name: PRD v2 범위 승인

@@ -5,15 +5,15 @@ owner:
   user_id: "565583270448988163"
 bots:
   claude_relay:
-    name: HJ Company
+    name: Tony
     user_id: "1563042220230053928"
     verified: true
-    role: 총괄과 각 프로젝트의 서비스PM
+    role: CPO Tony. #hq 총괄과 모든 프로젝트의 서비스PM (옛 이름 HJ Company, 2026-11-17 변경)
   codex_bridge:
     name: Codex_bot
     user_id: "1563059804082282516"
     verified: true
-    role: 각 프로젝트의 개발PM
+    role: CTO Cap. 모든 프로젝트의 개발PM
   retiring:
     - name: PM_Sora
       user_id: "1570101648054034522"
