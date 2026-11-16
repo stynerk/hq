@@ -7,7 +7,7 @@ bots:
   claude_relay:
     name: HJ Company
     user_id: "1563042220230053928"
-    verified: false
+    verified: true
     role: 총괄과 각 프로젝트의 서비스PM
   codex_bridge:
     name: Codex_bot
@@ -20,12 +20,16 @@ bots:
       verified: true
       note: onemorestep 제출(11-25) 후 Claude 릴레이로 통합하고 정리
 channels:
-  hq: null
-  hq_alerts: null
+  hq: "1571771762578825298"
+  hq_alerts: "1571771764462321744"
 categories:
-  hq: null
-  projects: null
-  archive: null
+  hq: "1571771756908253295"
+  projects: "1571771758778777731"
+  archive: "1571771760662151168"
+project_channels:
+  onemorestep:
+    channel_id: "1570085138774233170"
+    dev_thread_id: "1571771769461809153"
 ---
 
 # 디스코드 ID
