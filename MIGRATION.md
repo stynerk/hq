@@ -19,12 +19,12 @@
 - [x] 미커밋 변경을 `backup/2026-11-16-local` 브랜치에 커밋하고 push, 본 폴더를 `main`으로 전환 (Cap, #33: 184개 파일)
 - [ ] `.worktrees/`의 일회성 스크립트·PR 본문·커밋 메시지 파일을 `_to_delete/`로 옮긴 뒤 삭제. Git 작업 트리는 병합 여부 확인 후 `git worktree remove` (작업 트리 16개·파일 149개 정리 완료. `test-tools`는 인증·운영 파일이 있어 HJ 결정 대기)
 - [x] `.worktrees/discord-collaboration-draft.md`를 hq `docs/history/`에 사본으로 보관 (원본은 위 정리 때 함께 삭제)
-- [ ] 문서 이동: `docs/product/`(PRD v2, AI 코스 가이드), `docs/qa/`, `docs/tech/`(Firebase, T0, 경주 AI 핸드오버), `docs/reference/`(경주 일정), `docs/archive/`(Phase 1 계열 7개, 이전 인수인계, 루트의 PROJECT_INSTRUCTIONS·PROJECT_HANDOFF·NEW_PROJECT_START_PROMPT)
-- [ ] `docs/MVP_TICKETS.md`의 T0~T12를 GitHub Issue로 옮기고 문서는 아카이브
-- [ ] 템플릿으로 `CLAUDE.md`, `AGENTS.md`, `docs/team/*`, `.github/` 생성. 기존 `docs/HANDOFF.md`의 최신 상태로 `HANDOFF_SERVICE.md`, `HANDOFF_DEV.md` 작성
+- [x] (PR #32, 2026-11-17) 문서 이동: `docs/product/`(PRD v2, AI 코스 가이드), `docs/qa/`, `docs/tech/`(Firebase, T0, 경주 AI 핸드오버), `docs/reference/`(경주 일정), `docs/archive/`(Phase 1 계열 7개, 이전 인수인계, 루트의 PROJECT_INSTRUCTIONS·PROJECT_HANDOFF·NEW_PROJECT_START_PROMPT)
+- [ ] `docs/MVP_TICKETS.md`의 T0~T12를 GitHub Issue로 옮기고 문서는 아카이브 (#36~#48 생성, 완료 근거 있는 6개 닫음. 아카이브는 PR #49 QA 중)
+- [x] (PR #32) 템플릿으로 `CLAUDE.md`, `AGENTS.md`, `docs/team/*`, `.github/` 생성. 기존 `docs/HANDOFF.md`의 최신 상태로 `HANDOFF_SERVICE.md`, `HANDOFF_DEV.md` 작성
 - [ ] `.agents/skills/`(디자인 스킬 7종)를 hq `skills/`로 옮길지 결정 (Codex 스킬이므로 3단계 내보내기와 함께)
-- [ ] README 링크 갱신
-- [ ] 모두 한 PR로. 문서와 파일 이동만이므로 PM 합의로 병합
+- [x] (PR #32) README 링크 갱신
+- [x] PR #32(44개 파일, Pages 트리거 파일 변경 없음)를 Tony·Cap 합의로 병합
 
 ## 3단계: 봇
 
