@@ -1,7 +1,7 @@
 ---
 slug: our-adventure
 title: Our Adventure
-status: paused
+status: active
 repo: stynerk/OurAdventure
 local_path: C:/Users/styne/orca/OurAdventure
 discord:
@@ -55,8 +55,9 @@ gates:
 
 ## 구조 전환 상태
 
-해커톤을 먼저 하고 이후 재개하기로 했으므로 `paused`다. 구조 전환은 이 프로젝트를 먼저 한다(2단계).
+2026-11-17 HJ 결정: 봇이 동작하도록 `active`로 바꾸고 표준 구조로 전환한다. 이번에는 구조 전환만 하고, 기획·개발 재개(성공 지표 정의 등)는 onemorestep 제출(11-25) 뒤 HJ가 정한다. Tony·Cap은 그 전까지 제품 작업을 시작하지 않는다.
 
-- 디스코드 채널 ID는 기존 채널을 확인하지 못해 `null`이다. 새 채널을 만들 때 채운다. 참고로 Codex 브릿지가 이 저장소 작업 폴더에 연결한 채널은 `1563061495645081630`이다.
-- 페르소나 이름은 HJ가 정하지 않았다. 정하면 위 `agents`에 적는다.
+- 실행: Tony가 #hq에서 `!project new our-adventure stynerk/OurAdventure`로 새 채널 `#our-adventure`와 dev 스레드를 연다. 예전 `#ouradventure`(ARCHIVE)는 기록으로 둔다. 저장소·PC 정리는 Issue로 Cap이 한다.
+
+- 이름은 전 프로젝트 공통 Tony(CPO)·Cap(CTO)이다(2026-11-17).
 - 로컬 폴더가 `main`이 아닌 `docs/prd-v2-group-stamp-tour` 브랜치에 멈춰 있다(2026-11-16 확인). 개발PM이 미커밋 변경을 `backup/` 브랜치에 커밋한 뒤 `main`으로 전환한다(HJ 승인).
