@@ -28,6 +28,7 @@
 
 ## 3단계: 봇
 
+- [ ] PC에 hq 클론: `git clone https://github.com/stynerk/hq C:/Users/styne/orca/hq` (Cap 또는 HJ)
 - [ ] Codex 브릿지 코드를 hq `bots/codex-bridge/`로 옮김. 토큰과 `private/`는 Git 밖
 - [ ] 브릿지가 hq `projects/`를 읽어 채널 → 작업 폴더·페르소나를 정함. 등록되지 않은 채널은 실행 거부
 - [ ] 전역 1작업 → 채널(프로젝트)별 큐
@@ -55,5 +56,5 @@
 
 ## 드라이브
 
-- [ ] `해커톤/해커톤 출전팀` 폴더에 안내 문서 "이 폴더는 보관용입니다" 추가 (정본: github.com/stynerk/hq)
+- [x] `해커톤/해커톤 출전팀` 폴더에 안내 문서 "00_이 폴더는 보관용입니다" 추가 (2026-11-16)
 - 팀 로그 `E_백로그`의 열린 항목(테스터 참여 확인, 관문 2·3 검수 패키지, Codex 클라우드 환경 확인, Gemini 리뷰어 전환)은 onemorestep 현행 운영을 따르며, 6단계에서 Issue로 옮긴다.
