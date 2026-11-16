@@ -1,0 +1,16 @@
+{
+  "name": "hq-bots",
+  "private": true,
+  "type": "module",
+  "engines": {"node": ">=22"},
+  "scripts": {
+    "codex": "node codex-bridge/bridge.mjs",
+    "claude": "node claude-relay/relay.mjs",
+    "export-agents": "node tools/export-agents.mjs",
+    "test": "node --test shared/*.test.mjs tools/*.test.mjs claude-relay/*.test.mjs codex-bridge/test.mjs codex-bridge/profiles.test.mjs codex-bridge/attachments.test.mjs"
+  },
+  "dependencies": {
+    "discord.js": "^14.25.1",
+    "yaml": "^2.8.1"
+  }
+}
