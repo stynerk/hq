@@ -40,6 +40,15 @@ test('service worktree follows merged main and preserves dirty or squash-diverge
   assert.equal(fs.readFileSync(path.join(service,'policy.txt'),'utf8'),'updated hq policy');
   // The next invocation after main advances still starts normally.
   assert.equal(await serviceWorkspace(project),service);
+  // An untracked file at an incoming path must not be overwritten by fast-forward.
+  fs.writeFileSync(path.join(seed,'local-work.txt'),'incoming remote work');await git(seed,'add','local-work.txt');await git(seed,'commit','-m','Incoming file');await git(seed,'push','origin','main');
+  const beforeConflict=await git(service,'rev-parse','HEAD');
+  await assert.rejects(serviceWorkspace(project),/fast-forward 실패/);
+  assert.equal(await git(service,'rev-parse','HEAD'),beforeConflict);
+  assert.equal(fs.readFileSync(path.join(service,'local-work.txt'),'utf8'),'preserve me');
+  fs.renameSync(path.join(service,'local-work.txt'),path.join(service,'saved-local-work.txt'));
+  assert.equal(await serviceWorkspace(project),service);
+  assert.equal(fs.readFileSync(path.join(service,'local-work.txt'),'utf8'),'incoming remote work');
   fs.writeFileSync(path.join(service,'policy.txt'),'local tracked work');
   fs.writeFileSync(path.join(seed,'policy.txt'),'next main');await git(seed,'commit','-am','Next main');await git(seed,'push','origin','main');
   const preservedHead=await git(service,'rev-parse','HEAD');
@@ -54,7 +63,7 @@ test('service worktree follows merged main and preserves dirty or squash-diverge
   const serviceHead=await git(service,'rev-parse','HEAD');
   await assert.rejects(serviceWorkspace(project),/갈라졌습니다.*squash/);
   assert.equal(await git(service,'rev-parse','HEAD'),serviceHead);
-  assert.equal(fs.readFileSync(path.join(service,'local-work.txt'),'utf8'),'preserve me');
+  assert.equal(fs.readFileSync(path.join(service,'saved-local-work.txt'),'utf8'),'preserve me');
  }finally{fs.rmSync(root,{recursive:true,force:true});}
 });
 
