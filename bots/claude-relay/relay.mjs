@@ -52,8 +52,8 @@ async function handle(m){
       if(adminBusy)return send(m.channel,'서버 설정을 처리 중입니다.');if(route.text.startsWith('!project')&&m.channel.id!==reg.hqChannelId)return send(m.channel,'!project new는 #hq에서 사용하세요.');
       adminBusy=true;try{
         const guild=await bot.guilds.fetch(reg.guildId);let extra='';
-        if(route.text==='!hq init'){await initHQ({guild,reg,hqRoot,reload:()=>registry.reload()});await commitRegistry(hqRoot,['config/discord.md',...reg.projects.map(p=>'projects/'+p.slug+'.md')]);}
-        else{const parts=route.text.split(/\s+/);if(parts.length!==4)throw new Error('형식: !project new <slug> <owner/repo>');const [, ,slug,repo]=parts;await newProject({guild,reg,hqRoot,slug,repo,reload:()=>registry.reload()});await commitRegistry(hqRoot,['projects/'+slug+'.md']);extra=`새 프로젝트 ${slug}, 저장소 ${repo}. playbooks/new-project.md의 2~5절을 수행한다. 저장소 생성·공개·권한 변경은 하지 않고 HJ에게 필요한 초안을 제시한다.`;}
+        if(route.text==='!hq init'){await initHQ({guild,reg,hqRoot,reload:()=>registry.reload()});await commitRegistry(hqRoot,['config/discord.md']);}
+        else{const parts=route.text.split(/\s+/);if(parts.length!==4)throw new Error('형식: !project new <slug> <owner/repo>');const [, ,slug,repo]=parts;await newProject({guild,reg,hqRoot,slug,repo,reload:()=>registry.reload()});await commitRegistry(hqRoot,['config/discord.md','projects/'+slug+'.md']);extra=`새 프로젝트 ${slug}, 저장소 ${repo}. playbooks/new-project.md의 2~5절을 수행한다. 저장소 생성·공개·권한 변경은 하지 않고 HJ에게 필요한 초안을 제시한다.`;}
         await send(m.channel,'디스코드 구성을 저장했습니다.');if(extra)queue.enqueue('hq',m.id,signal=>runMessage(m,{kind:'chat',lane:'hq',role:'hq-lead',mode:'owner',text:extra},signal).catch(e=>send(m.channel,e.message)));
       }finally{adminBusy=false;}return;
     }
