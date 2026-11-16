@@ -16,7 +16,12 @@ function fixture() {
     fs.mkdirSync(path.join(dir, d), {recursive: true});
     for (const f of fs.readdirSync(path.join(hqRoot, d)).filter(f => f.endsWith('.md'))) fs.copyFileSync(path.join(hqRoot, d, f), path.join(dir, d, f));
   }
-  updateFrontmatter(path.join(dir, 'config', 'discord.md'), d => { d.channels.hq = '900'; d.channels.hq_alerts = '901'; d.categories.archive = '902'; });
+  updateFrontmatter(path.join(dir, 'config', 'discord.md'), d => {
+    d.channels.hq = '900'; d.channels.hq_alerts = '901'; d.categories.archive = '902';
+    // 중앙 설정의 project_channels가 프로젝트 파일보다 우선한다. onemorestep은 중앙 설정으로,
+    // our-adventure는 중앙 설정에 없을 때의 프로젝트 파일 호환 경로로 시험한다.
+    d.project_channels = {onemorestep: {channel_id: '1570085138774233170', dev_thread_id: '777'}};
+  });
   updateFrontmatter(path.join(dir, 'projects', 'onemorestep.md'), d => { d.discord.dev_thread_id = '777'; });
   updateFrontmatter(path.join(dir, 'projects', 'our-adventure.md'), d => { d.discord.channel_id = '555'; });
   return dir;

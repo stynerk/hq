@@ -17,6 +17,8 @@ test('relay instructions use registry identities despite legacy project guidance
  assert.ok(text.includes('너의 멘션은 <@current-sora>'));
  assert.ok(text.includes('<@current-cap> TASK_READY #번호'));
  assert.ok(text.indexOf('Legacy PM_Sora')<text.indexOf('현재 hq 레지스트리'));
+ assert.ok(text.includes('최종 답은 릴레이가')&&text.includes('디스코드 도구(fetch_messages'));
+ assert.ok(text.indexOf('첫 줄을 아래 인계 형식')<text.indexOf('<@current-cap> TASK_READY #번호'));
 });
 
 test('service worktree follows merged main and preserves dirty or squash-diverged work',async()=>{
@@ -95,4 +97,14 @@ test('abort keeps lane occupied until the CLI actually closes',async()=>{
  const controller=new AbortController();let cli;let settled=false;
  const promise=runClaude({cwd:os.tmpdir(),prompt:'p',system:'s',signal:controller.signal,spawnFn:()=>{cli=new EventEmitter();cli.pid=99999999;cli.stdout=new EventEmitter();cli.stderr=new EventEmitter();cli.stdin=new EventEmitter();cli.stdin.end=()=>{};cli.kill=()=>true;return cli;}}).catch(()=>{settled=true;});
  controller.abort();await tick();assert.equal(settled,false);cli.emit('close',null);await promise;assert.equal(settled,true);
+});
+
+test('work sessions enable the Bash tool but preapprove only git and gh, and ignore user MCP servers',()=>{
+ const args=claudeArgs('/tmp/p');
+ const tools=args[args.indexOf('--tools')+1].split(',');
+ assert.ok(tools.includes('Bash'));assert.ok(!tools.some(t=>t.includes('(')),'--tools must hold tool names only');
+ const allowed=args.slice(args.indexOf('--allowedTools')+1);
+ assert.ok(allowed.includes('Bash(git *)')&&allowed.includes('Bash(gh *)'));assert.ok(!allowed.includes('Bash'),'bare Bash must not be preapproved');
+ assert.ok(args.includes('--strict-mcp-config'));
+ assert.ok(claudeArgs('/tmp/p',{consult:true}).includes('--strict-mcp-config'));
 });
