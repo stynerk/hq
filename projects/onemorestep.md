@@ -54,6 +54,10 @@ gates:
 
 ## 구조 전환 상태
 
-**11-25 제출 전에는 바꾸지 않는다.** 그때까지 기존 봇(PM_Sora, Codex_bot)과 저장소의 기존 `CLAUDE.md`, `AGENTS.md`, `docs/team/WORKFLOW.md`를 그대로 쓴다. 이 hq의 규칙과 다른 점이 있으면 저장소 쪽을 따른다.
+2026-11-16 HJ 결정으로 Our Adventure보다 먼저, 제출 전에 전면 전환한다(기획 단계에서 멈춰 있어 위험이 낮다).
 
-제출 후 할 일: `ROLE_PM.md` 아카이브, `HANDOFF_CTO.md` → `HANDOFF_DEV.md`, `CLAUDE.md`·`AGENTS.md`를 템플릿 기준으로 축소, 폴더를 `orca/projects/onemorestep`으로 이동, 봇 전환. 상세는 [MIGRATION.md](../MIGRATION.md).
+- [x] 저장소 문서 전환 (onemorestep `1e6f629`): `CLAUDE.md`·`AGENTS.md`를 hq 기준으로, `HANDOFF_CTO.md` → `HANDOFF_DEV.md`, `HANDOFF_SERVICE.md` 신설, `ROLE_PM.md`·`WORKFLOW.md`는 `docs/archive/`, `DECISIONS.md` 정본화, 공통 LEARNINGS를 hq로
+- [ ] `qa`, `release-ready` 라벨 생성 (Cap)
+- [ ] 열린 브랜치 정리: `issue-7-web-mockup`, `issue-9-api-providers`, `design-main-home-wireframes` (새 main에 충돌 없이 병합되는 것 확인함)
+- [ ] 새 봇 전환: Claude 릴레이(소라), Codex 브릿지 레지스트리화(Cap), dev 스레드 생성. 전환되면 `CLAUDE.md`·`AGENTS.md`의 "전환 기간" 절을 지운다
+- [ ] PC 본 폴더를 `main`으로 두고 역할별 작업 트리로 분리 (지금 본 폴더는 Cap의 `issue-9-api-providers` 브랜치)

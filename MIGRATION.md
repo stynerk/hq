@@ -8,13 +8,13 @@
 |---|---|---|
 | 0 | 드라이브·저장소 문서 대응표 | 완료 (2026-11-16) |
 | 1 | hq 골격: playbooks, 에이전트 정의, 레지스트리, 템플릿, 공통 기록 | 완료 (2026-11-16) |
-| 2 | Our Adventure를 표준 구조로 이전 | 대기 |
-| 3 | 봇: Codex 브릿지 레지스트리화·채널별 병렬, Claude 릴레이, 서브에이전트 내보내기, 자동 실행 | 대기 |
-| 4 | 디스코드 재구성과 `!project new` | 대기 |
-| 5 | 테스트 프로젝트로 처음부터 끝까지 검증, Our Adventure 전환 | 대기 |
-| 6 | onemorestep 전환 (11-25 제출 후) | 대기 |
+| 2 | onemorestep 저장소 문서 전환 (HJ 결정으로 순서 변경) | 완료 (2026-11-16, onemorestep `1e6f629`) |
+| 3 | 봇: Codex 브릿지 레지스트리화·채널별 병렬, Claude 릴레이, 서브에이전트 내보내기, 자동 실행 | 진행 중 |
+| 4 | 디스코드 재구성과 `!project new`, onemorestep 봇 전환 | 대기 |
+| 5 | 처음부터 끝까지 검증 | 대기 |
+| 6 | Our Adventure를 표준 구조로 이전하고 전환 | 대기 |
 
-## 2단계: Our Adventure
+## 6단계: Our Adventure (원래 2단계)
 
 - [ ] 미커밋 변경을 `backup/2026-11-16-local` 브랜치에 커밋하고 push, 본 폴더를 `main`으로 전환
 - [ ] `.worktrees/`의 일회성 스크립트·PR 본문·커밋 메시지 파일을 `_to_delete/`로 옮긴 뒤 삭제. Git 작업 트리는 병합 여부 확인 후 `git worktree remove`
@@ -37,7 +37,7 @@
 - [ ] 봇끼리 키워드 실행과 6회 제한 ([playbooks/discord.md](playbooks/discord.md))
 - [ ] 서브에이전트 내보내기 스크립트: hq `agents/subagents/` → `.claude/agents/*.md`, `.codex/agents/*.toml`
 - [ ] Windows 로그인 시 자동 실행과 재시작 (작업 스케줄러)
-- [ ] `onemorestep/.claude/settings.local.json`의 JSON 오류는 11-25 전에 소라가 영향받지 않는지만 확인 (전환은 6단계)
+- [ ] `onemorestep/.claude/settings.local.json`(PC 로컬, JSON 오류와 경로 불일치)은 Claude 릴레이 전환 때 정리
 
 ## 4·5단계: 디스코드와 검증
 
@@ -57,4 +57,4 @@
 ## 드라이브
 
 - [x] `해커톤/해커톤 출전팀` 폴더에 안내 문서 "00_이 폴더는 보관용입니다" 추가 (2026-11-16)
-- 팀 로그 `E_백로그`의 열린 항목(테스터 참여 확인, 관문 2·3 검수 패키지, Codex 클라우드 환경 확인, Gemini 리뷰어 전환)은 onemorestep 현행 운영을 따르며, 6단계에서 Issue로 옮긴다.
+- 팀 로그 `E_백로그`의 열린 항목(테스터 참여 확인, 관문 2·3 검수 패키지, Codex 클라우드 환경 확인, Gemini 리뷰어 전환)은 onemorestep `HANDOFF_SERVICE.md`의 열린 결정과 다음 할 일로 옮겼다. Issue화는 소라가 한다.
