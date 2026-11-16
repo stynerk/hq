@@ -101,3 +101,4 @@ export function trustedHandoff(message, botId, trustedBotIds = [], trustedChanne
 export function conversationKey(message) {
   return message.guildId ? `guild:${message.guildId}:channel:${message.channel.id}` : `dm:${message.author.id}`;
 }
+

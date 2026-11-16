@@ -1,0 +1,20 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {preflight} from './preflight.mjs';
+import {joinFrontmatter} from '../shared/registry.mjs';
+test('preflight blocks invalid active settings and legacy hooks without exposing content', t => {
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'hq-preflight-'));t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+  fs.mkdirSync(path.join(root,'config'));fs.mkdirSync(path.join(root,'projects'));
+  fs.writeFileSync(path.join(root,'config/discord.md'),'---\nowner: { user_id: "owner" }\n---\n');
+  const project=path.join(root,'demo');fs.mkdirSync(path.join(project,'.claude'),{recursive:true});
+  fs.writeFileSync(path.join(root,'projects/demo.md'),joinFrontmatter({slug:'demo',status:'active',local_path:project},''));
+  const settings=path.join(project,'.claude/settings.local.json');
+  fs.writeFileSync(settings,'{"token":"TOP_SECRET",');
+  assert.equal(preflight(root).errors.length,1);assert.doesNotMatch(JSON.stringify(preflight(root)),/TOP_SECRET/);
+  fs.writeFileSync(settings,JSON.stringify({hooks:{SessionStart:[{command:'powershell ensure-relay.ps1'}]},token:'TOP_SECRET'}));
+  assert.equal(preflight(root).errors.length,1);assert.doesNotMatch(JSON.stringify(preflight(root)),/TOP_SECRET/);
+  fs.writeFileSync(settings,'{}');assert.deepEqual(preflight(root),{errors:[],warnings:[]});
+});

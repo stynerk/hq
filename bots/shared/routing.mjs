@@ -96,6 +96,7 @@ export function classify(m, {self, reg, repliesToSelf = false, exchangeCount = 0
   }
 
   if (isPeer) {
+    if (place !== 'dev') return ignore('peer-outside-dev');
     if (!mentions(raw, selfId)) return ignore('peer-not-mentioning');
     if (exchangeCount > BOT_EXCHANGE_LIMIT) return {kind: 'loop-limit', ...base};
     const kw = parseKeyword(text, EXECUTE_KEYWORDS[self]);
@@ -114,3 +115,4 @@ export function chunk(text, limit = 1900) {
   if (cur) out.push(cur);
   return out.length ? out : ['(빈 응답)'];
 }
+

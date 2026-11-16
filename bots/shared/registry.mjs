@@ -110,3 +110,4 @@ export function locate(reg, channel) {
   }
   return null;
 }
+

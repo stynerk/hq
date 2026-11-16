@@ -76,3 +76,4 @@ test('App Server stdio handshake, server requests, errors, and exit', async () =
     assert.equal(rpc.pending.size, 0);
   } finally { rpc.close(); }
 });
+

@@ -137,3 +137,4 @@ test('prepared attachment input survives App Server JSON-RPC transport with a re
   const rpc=new AppServer([process.execPath,['-e',fake,'--']]);
   try{await rpc.initialize();const result=await rpc.request('turn/start',{threadId:'test',input:prepared.input});assert.equal(result.received,'%PDF-');assert.equal(result.text,prepared.prompt);}finally{rpc.close();}
 });
+

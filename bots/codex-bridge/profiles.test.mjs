@@ -59,3 +59,4 @@ test('profile servers isolate credentials, reject wrong plan, and never fall bac
     locked.close();
   } finally { pool.close(); fs.unlinkSync(file); fs.rmdirSync(dir); }
 });
+

@@ -159,3 +159,15 @@ test('parseKeyword and chunk', () => {
   assert.equal(parts.join('').replace(/\n/g, '').length, 6000);
   assert.deepEqual(chunk(''), ['(빈 응답)']);
 });
+
+
+test('peer bot handoffs outside the registered dev thread never run', () => {
+  const p = {slug:'demo',status:'active'};
+  const reg = {ownerId:'owner',guildId:'guild',claudeBotId:'claude',codexBotId:'codex',byChannel:new Map([['main',{project:p,kind:'main'}],['dev',{project:p,kind:'dev'}]])};
+  const message = {author:{id:'claude',bot:true},guildId:'guild',channel:{id:'main'},content:'<@codex> TASK_READY #12'};
+  assert.equal(classify(message,{self:'codex',reg}).kind,'ignore');
+  message.channel={id:'other-thread',parentId:'main'};
+  assert.equal(classify(message,{self:'codex',reg}).kind,'ignore');
+  message.channel={id:'dev',parentId:'main'};
+  assert.equal(classify(message,{self:'codex',reg}).mode,'execute');
+});
