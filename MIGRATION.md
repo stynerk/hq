@@ -9,9 +9,9 @@
 | 0 | 드라이브·저장소 문서 대응표 | 완료 (2026-11-16) |
 | 1 | hq 골격: playbooks, 에이전트 정의, 레지스트리, 템플릿, 공통 기록 | 완료 (2026-11-16) |
 | 2 | onemorestep 저장소 문서 전환 (HJ 결정으로 순서 변경) | 완료 (2026-11-16, onemorestep `1e6f629`) |
-| 3 | 봇: Codex 브릿지 레지스트리화·채널별 병렬, Claude 릴레이, 서브에이전트 내보내기, 자동 실행 | 진행 중 (브랜치 `bots-v1`, ChatGPT/Codex가 이어받음: [docs/HANDOFF_SETUP.md](docs/HANDOFF_SETUP.md)) |
-| 4 | 디스코드 재구성과 `!project new`, onemorestep 봇 전환 | 대기 |
-| 5 | 처음부터 끝까지 검증 | 대기 |
+| 3 | 봇: Codex 브릿지 레지스트리화·채널별 병렬, Claude 릴레이, 서브에이전트 내보내기, 자동 실행 | 완료 (2026-11-17, onemorestep 기준). 서브에이전트 내보내기는 미확인 |
+| 4 | 디스코드 재구성과 `!project new`, onemorestep 봇 전환 | onemorestep 전환 완료 (2026-11-17 HJ 확정). `!project new`는 6단계에서 검증 |
+| 5 | 처음부터 끝까지 검증 | onemorestep 완료 (HANDOFF_SETUP §5-3 전 항목 통과, 아래 기록) |
 | 6 | Our Adventure를 표준 구조로 이전하고 전환 | 대기 |
 
 ## 6단계: Our Adventure (원래 2단계)
@@ -48,7 +48,7 @@
 - [ ] 테스트 프로젝트로 `!project new` → `TASK_READY` → PR → 검토 → QA → 병합까지 한 번. 같은 메시지 재전송 시 중복 실행 0건, `!stop` 이후 새 실행 0건
 - [ ] Our Adventure 채널 생성과 전환
 
-## onemorestep 운영 검증 기록 (HANDOFF_SETUP 5-3, 전환 미완료)
+## onemorestep 운영 검증 기록 (HANDOFF_SETUP 5-3, 2026-11-17 전환 완료)
 
 2026-11-17 05시 기준. 전환 완료 판정은 미검증 항목이 모두 통과한 뒤 HJ가 한다.
 
