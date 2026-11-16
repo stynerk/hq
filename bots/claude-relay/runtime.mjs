@@ -39,11 +39,19 @@ export function relayInstructions(route,reg) {
 export async function serviceWorkspace(project,{execFn=exec}={}){
   const repo=project.localPath;if(!repo||!fs.existsSync(repo))throw new Error('프로젝트 로컬 폴더가 없습니다: '+repo);
   const cwd=path.join(repo,'.worktrees','service');
-  await execFn('git',['-C',repo,'fetch','origin','main']);
+  try {await execFn('git',['-C',repo,'fetch','origin','main']);}
+  catch {throw new Error('서비스 작업 트리 최신화 실패: origin/main fetch의 네트워크·Git 인증을 확인하세요. 기존 작업은 보존했습니다.');}
   if(!fs.existsSync(cwd)){await execFn('git',['-C',repo,'worktree','add','-b','service/'+project.slug,cwd,'origin/main']);}
   const {stdout}=await execFn('git',['-C',cwd,'rev-parse','--show-toplevel']);if(path.resolve(stdout.trim()).toLowerCase()!==path.resolve(cwd).toLowerCase())throw new Error('서비스 작업 트리 검증 실패');
-  try {await execFn('git',['-C',cwd,'merge-base','--is-ancestor','origin/main','HEAD']);}
-  catch {throw new Error('서비스 작업 트리가 origin/main보다 오래됐습니다. 기존 작업을 보존하고 별도로 최신 main을 반영하세요.');}
+  const recovery='기존 작업은 보존했습니다. Cap이 서비스 작업 트리에서 git status로 상태를 확인하고 현재 브랜치·변경을 백업한 뒤 별도 작업 트리에서 main을 반영하세요. squash 병합으로 갈라졌다면 미병합 변경을 대조해 옮기고 복구 후 재시도하세요.';
+  const ancestor=async(a,b)=>{try {await execFn('git',['-C',cwd,'merge-base','--is-ancestor',a,b]);return true;}catch(e){if(e.code===1)return false;throw new Error('서비스 작업 트리 Git 이력 확인 실패. '+recovery);}};
+  if(!await ancestor('origin/main','HEAD')){
+    if(!await ancestor('HEAD','origin/main'))throw new Error('서비스 브랜치와 origin/main이 갈라졌습니다. '+recovery);
+    try {await execFn('git',['-C',cwd,'diff','--quiet','HEAD','--']);}
+    catch {throw new Error('서비스 작업 트리에 추적 파일 변경이 있어 자동 최신화를 중단했습니다. '+recovery);}
+    try {await execFn('git',['-C',cwd,'merge','--ff-only','origin/main']);}
+    catch {throw new Error('서비스 작업 트리 fast-forward 실패. 충돌하는 미추적 파일 또는 Git 상태를 확인하세요. '+recovery);}
+  }
   return cwd;
 }
 export function claudeCommand({platform=process.platform, env=process.env, exists=fs.existsSync}={}) {

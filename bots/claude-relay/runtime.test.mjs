@@ -19,7 +19,7 @@ test('relay instructions use registry identities despite legacy project guidance
  assert.ok(text.indexOf('Legacy PM_Sora')<text.indexOf('현재 hq 레지스트리'));
 });
 
-test('service worktree fetches current origin main and preserves stale local work',async()=>{
+test('service worktree follows merged main and preserves dirty or squash-diverged work',async()=>{
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'hq-service-'));
  const exec=promisify(execFile);
  const git=async(cwd,...args)=>(await exec('git',['-c','user.name=Test','-c','user.email=test@example.invalid','-C',cwd,...args])).stdout.trim();
@@ -35,10 +35,33 @@ test('service worktree fetches current origin main and preserves stale local wor
   assert.equal(fs.readFileSync(path.join(repo,'policy.txt'),'utf8'),'legacy');
   fs.writeFileSync(path.join(service,'local-work.txt'),'preserve me');
   fs.writeFileSync(path.join(seed,'policy.txt'),'updated hq policy');await git(seed,'commit','-am','Update policy');await git(seed,'push','origin','main');
-  await assert.rejects(serviceWorkspace(project),/오래됐습니다/);
+  assert.equal(await serviceWorkspace(project),service);
   assert.equal(fs.readFileSync(path.join(service,'local-work.txt'),'utf8'),'preserve me');
-  assert.equal(fs.readFileSync(path.join(service,'policy.txt'),'utf8'),'hq policy');
+  assert.equal(fs.readFileSync(path.join(service,'policy.txt'),'utf8'),'updated hq policy');
+  // The next invocation after main advances still starts normally.
+  assert.equal(await serviceWorkspace(project),service);
+  fs.writeFileSync(path.join(service,'policy.txt'),'local tracked work');
+  fs.writeFileSync(path.join(seed,'policy.txt'),'next main');await git(seed,'commit','-am','Next main');await git(seed,'push','origin','main');
+  const preservedHead=await git(service,'rev-parse','HEAD');
+  await assert.rejects(serviceWorkspace(project),/추적 파일 변경/);
+  assert.equal(await git(service,'rev-parse','HEAD'),preservedHead);
+  assert.equal(fs.readFileSync(path.join(service,'policy.txt'),'utf8'),'local tracked work');
+  // Staged tracked changes also prevent the fast-forward.
+  await git(service,'add','policy.txt');await assert.rejects(serviceWorkspace(project),/추적 파일 변경/);
+  // Commit the local work; main independently squashes the same content.
+  await git(service,'commit','-m','Service policy work');
+  fs.writeFileSync(path.join(seed,'policy.txt'),'local tracked work');await git(seed,'commit','-am','Squashed service policy work');await git(seed,'push','origin','main');
+  const serviceHead=await git(service,'rev-parse','HEAD');
+  await assert.rejects(serviceWorkspace(project),/갈라졌습니다.*squash/);
+  assert.equal(await git(service,'rev-parse','HEAD'),serviceHead);
+  assert.equal(fs.readFileSync(path.join(service,'local-work.txt'),'utf8'),'preserve me');
  }finally{fs.rmSync(root,{recursive:true,force:true});}
+});
+
+test('service worktree reports fetch failure without exposing Git credential errors',async()=>{
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'hq-service-fetch-'));
+ try {await assert.rejects(serviceWorkspace({slug:'demo',localPath:root},{execFn:async()=>{throw new Error('sensitive Git stderr');}}),e=>e.message.includes('네트워크·Git 인증')&&!e.message.includes('sensitive'));}
+ finally{fs.rmSync(root,{recursive:true,force:true});}
 });
 test('lane queues serialize locally, permit independent projects, reject duplicate message IDs',async()=>{
  const q=new LaneQueue();let release;const wait=new Promise(r=>release=r);let order=[];
