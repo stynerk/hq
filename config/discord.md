@@ -19,6 +19,8 @@ bots:
       user_id: "1570101648054034522"
       verified: true
       note: onemorestep 제출(11-25) 후 Claude 릴레이로 통합하고 정리
+roles:
+  service_pm: "1570103275280138252"  # 디스코드 "서비스PM" 역할. PM_Sora → Tony 이전은 HJ가 디스코드에서 한다(2026-11-17)
 channels:
   hq: "1571771762578825298"
   hq_alerts: "1571771764462321744"
