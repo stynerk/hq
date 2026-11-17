@@ -42,7 +42,7 @@
   - `REVIEW_REQUEST #12`: 개발PM → 서비스PM. PR 검토 요청
   - `QA_RESULT #12 pass|fail`: 개발PM → 서비스PM. QA 결과
 - **협의**: 키워드 없이 상대를 멘션한 질문에는 답만 하고 실행하지 않는다.
-- **끝없는 대화 막기**: HJ의 메시지 없이 봇끼리 같은 스레드에서 6번 주고받으면 멈추고, 서비스PM이 쟁점과 추천안을 `owner-decision` Issue로 올린다.
+- **끝없는 대화 막기**: HJ의 메시지 없이 봇끼리 같은 Issue를 두고 6번을 넘게 주고받으면 멈추고, 서비스PM이 쟁점과 추천안을 `owner-decision` Issue로 올린다. 횟수는 Issue 번호별로 센다(키워드 없는 협의는 스레드 단위). Issue 하나의 정상 인계(TASK_READY → REVIEW_REQUEST → QA_READY → QA_RESULT)는 4회라 여러 Issue를 이어 처리해도 걸리지 않는다. HJ 메시지는 횟수를 모두 초기화한다(2026-11-17 HJ 결정, hq PR #9).
 - 상세 내용과 결과는 디스코드가 아니라 Issue와 PR에 쓴다. 디스코드에는 한두 줄과 링크만.
 
 ## 4. 승인 요청

@@ -30,3 +30,5 @@ HJ가 확정한 운영 결정을 날짜순으로 쌓는다. 프로젝트 고유 
 | 2026-11-17 | Tony·Cap이 합의하면 병합한다. 되돌릴 수 없는 변경, 서비스 정지 위험, 권한·비밀값·결제·공개, hq `bots/` 코드, 결정 권한 문서 변경만 HJ가 병합한다 | HJ 결정 |
 | 2026-11-17 | onemorestep 봇 전환 완료. 다음: 전환 기간 절 삭제(onemorestep Issue), 옛 봇 정리, Our Adventure 전환 | HJ 확정 (§5-3 전 항목 통과) |
 | 2026-11-17 | Our Adventure 전환: Tony·Cap이 실행(`!project new`, Issue), 상태는 active로 바꾸되 제품 개발은 11-25 뒤 HJ가 재개 결정, 새 채널 #our-adventure(예전 #ouradventure는 ARCHIVE 보존) | HJ 결정 |
+| 2026-11-17 | 봇끼리 6회 제한은 Issue 번호별로 센다(협의는 스레드 단위) | HJ 결정 (선택지 1). 코드는 hq PR #9 |
+| 2026-11-17 | Our Adventure PC의 `test-tools` 작업 트리는 인증·운영 파일이 있어 그대로 두고 #33을 예외로 닫는다 | HJ 결정 (선택지 1) |
