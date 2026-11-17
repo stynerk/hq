@@ -176,12 +176,12 @@ async function handleMessage(m) {
   if (m.author.id === reg.ownerId && m.reference?.messageId) {
     try { repliesToSelf = (await m.fetchReference()).author.id === reg.codexBotId; } catch {}
   }
-  const route = classify(m, {self: 'codex', reg, repliesToSelf, exchangeCount: exchanges.count(m.channel.id)});
+  const route = classify(m, {self: 'codex', reg, repliesToSelf, exchangeCount: exchanges.count(m)});
   if (route.kind === 'ignore') return;
   if (!jobs.claim(m.id)) return;
   if (route.kind === 'unregistered') return; // playbooks/discord.md 2절: 채널에서는 아무도 답하지 않는다. #hq 알림은 Tony가 한다.
   if (route.kind === 'loop-limit') {
-    if (exchanges.warnOnce(m.channel.id)) await send(m.channel, '봇끼리 6회 초과, 서비스PM이 owner-decision으로 올려 주세요');
+    if (exchanges.warnOnce(m)) await send(m.channel, '봇끼리 6회 초과, 서비스PM이 owner-decision으로 올려 주세요');
     return;
   }
   const laneId = route.lane || 'hq';

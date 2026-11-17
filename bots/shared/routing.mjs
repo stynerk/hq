@@ -39,16 +39,34 @@ export function parseKeyword(text, allowed) {
 }
 
 /** 채널마다 HJ 메시지 이후 봇끼리 주고받은 수를 센다. */
+/**
+ * 봇끼리 주고받은 횟수. Issue 번호별로 센다(2026-11-17 HJ 결정): 실행 키워드와 #번호가 있는 봇 메시지는
+ * `채널#번호`로, 키워드 없는 협의는 채널 단위로 센다. Issue 하나의 정상 인계는 4회라 여러 Issue를 이어도 막히지 않고,
+ * 같은 Issue에서 끝없이 오가는 경우만 막는다. HJ 메시지는 그 채널의 모든 횟수를 초기화한다.
+ * count·warnOnce는 메시지(그 메시지의 Issue 기준) 또는 채널 ID를 받는다.
+ */
+const ALL_KEYWORDS = [...EXECUTE_KEYWORDS.codex, ...EXECUTE_KEYWORDS.claude];
 export class ExchangeCounter {
   constructor() { this.counts = new Map(); this.warned = new Set(); }
-  record(message, {ownerId, botIds}) {
-    const id = String(message.channel?.id);
-    if (message.author?.id === ownerId && !message.author.bot) { this.counts.set(id, 0); this.warned.delete(id); }
-    else if (botIds.includes(message.author?.id)) this.counts.set(id, (this.counts.get(id) || 0) + 1);
-    return this.counts.get(id) || 0;
+  key(x) {
+    if (typeof x !== 'object' || x === null) return String(x);
+    const ch = String(x.channel?.id);
+    const kw = parseKeyword(String(x.content || '').replace(/<@!?\d+>/g, ''), ALL_KEYWORDS);
+    return kw ? `${ch}#${kw.issue}` : ch;
   }
-  count(channelId) { return this.counts.get(String(channelId)) || 0; }
-  warnOnce(channelId) { const id = String(channelId); if (this.warned.has(id)) return false; this.warned.add(id); return true; }
+  record(message, {ownerId, botIds}) {
+    const ch = String(message.channel?.id);
+    if (message.author?.id === ownerId && !message.author.bot) {
+      for (const k of [...this.counts.keys()]) if (k === ch || k.startsWith(ch + '#')) this.counts.delete(k);
+      for (const k of [...this.warned]) if (k === ch || k.startsWith(ch + '#')) this.warned.delete(k);
+      return 0;
+    }
+    const key = this.key(message);
+    if (botIds.includes(message.author?.id)) this.counts.set(key, (this.counts.get(key) || 0) + 1);
+    return this.counts.get(key) || 0;
+  }
+  count(x) { return this.counts.get(this.key(x)) || 0; }
+  warnOnce(x) { const id = this.key(x); if (this.warned.has(id)) return false; this.warned.add(id); return true; }
 }
 
 /**

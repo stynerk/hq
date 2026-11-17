@@ -38,10 +38,10 @@ async function handle(m){
   const reg=registry.get();if(reg.errors.length||registry.lastError)return;
   if(locate(reg,m.channel))counter.record(m,{ownerId:reg.ownerId,botIds:[reg.claudeBotId,reg.codexBotId]});
   let repliesToSelf=false;if(m.author?.id===reg.ownerId&&m.reference?.messageId)try{repliesToSelf=(await m.fetchReference()).author.id===bot.user.id;}catch{}
-  const route=classify(m,{self:'claude',reg,repliesToSelf,exchangeCount:counter.count(m.channel.id)});
+  const route=classify(m,{self:'claude',reg,repliesToSelf,exchangeCount:counter.count(m)});
   if(route.kind==='ignore')return;
   if(route.kind==='unregistered'){if(!unregistered.has(m.channel.id)){unregistered.add(m.channel.id);const alerts=reg.hqChannelId&&await bot.channels.fetch(reg.hqChannelId);if(alerts)await send(alerts,`등록되지 않은 채널: <#${m.channel.id}>. 레지스트리를 먼저 등록하세요.`);}return;}
-  if(route.kind==='loop-limit'){if(counter.warnOnce(m.channel.id))await send(m.channel,'봇끼리 6회 초과, 서비스PM이 owner-decision으로 올려 주세요.');return;}
+  if(route.kind==='loop-limit'){if(counter.warnOnce(m))await send(m.channel,'봇끼리 6회 초과, 서비스PM이 owner-decision으로 올려 주세요.');return;}
   if(route.kind==='command'){
     if(state.seen.includes(m.id))return;state.seen.push(m.id);state.seen=state.seen.slice(-10000);saveJSON(stateFile,state);
     const lane=route.lane||'hq';
