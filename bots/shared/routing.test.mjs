@@ -60,7 +60,8 @@ test('queued project work is cancelled when the registry pauses its project', ()
 test('paused projects reject owner messages, commands, and peer handoffs for both bots', () => {
   const dir = fixture();
   try {
-    updateFrontmatter(path.join(dir, 'projects', 'our-adventure.md'), d => { d.discord.dev_thread_id = '556'; });
+    // 실제 레지스트리의 our-adventure는 2026-11-17부터 active다. 이 테스트는 paused 동작만 본다.
+    updateFrontmatter(path.join(dir, 'projects', 'our-adventure.md'), d => { d.status = 'paused'; d.discord.dev_thread_id = '556'; });
     const reg = loadRegistry(dir);
     for (const self of ['claude', 'codex']) {
       const target = self === 'claude' ? CLAUDE : CODEX;
@@ -200,6 +201,27 @@ test('ExchangeCounter resets on owner and counts bots per channel', () => {
   k.record(msg(), opts);
   assert.equal(k.count(OMS), 0);
   assert.equal(k.warnOnce(OMS), true); assert.equal(k.warnOnce(OMS), false);
+});
+
+test('ExchangeCounter counts per Issue so consecutive Issues are not blocked', () => {
+  const k = new ExchangeCounter(); const opts = {ownerId: OWNER, botIds: [CLAUDE, CODEX]};
+  const hand = (from, kw, n) => msg({author: {id: from, bot: true}, content: `진행 경과\n<@${from === CLAUDE ? CODEX : CLAUDE}> ${kw} #${n}`});
+  // Issue 두 개를 정상 흐름(각 4회)으로 이어도 Issue별로는 4회다.
+  for (const n of [34, 35]) for (const [from, kw] of [[CLAUDE, 'TASK_READY'], [CODEX, 'REVIEW_REQUEST'], [CLAUDE, 'QA_READY'], [CODEX, 'QA_RESULT']]) k.record(hand(from, kw, n), opts);
+  assert.equal(k.count(hand(CLAUDE, 'QA_READY', 35)), 4);
+  assert.ok(k.count(hand(CLAUDE, 'QA_READY', 35)) <= BOT_EXCHANGE_LIMIT);
+  // 같은 Issue에서 계속 오가면 제한에 걸린다.
+  for (let i = 0; i < 3; i++) k.record(hand(CODEX, 'REVIEW_REQUEST', 35), opts);
+  assert.ok(k.count(hand(CODEX, 'REVIEW_REQUEST', 35)) > BOT_EXCHANGE_LIMIT);
+  // 키워드 없는 협의는 채널 단위로 센다.
+  k.record(msg({author: {id: CLAUDE, bot: true}, content: '질문'}), opts);
+  assert.equal(k.count(OMS), 1);
+  // HJ 메시지는 채널의 Issue별 횟수까지 모두 초기화한다.
+  assert.equal(k.warnOnce(hand(CODEX, 'REVIEW_REQUEST', 35)), true);
+  k.record(msg(), opts);
+  assert.equal(k.count(hand(CODEX, 'REVIEW_REQUEST', 35)), 0);
+  assert.equal(k.count(OMS), 0);
+  assert.equal(k.warnOnce(hand(CODEX, 'REVIEW_REQUEST', 35)), true);
 });
 
 test('parseKeyword and chunk', () => {
