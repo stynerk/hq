@@ -16,6 +16,9 @@ import {fileURLToPath} from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const hqRoot = path.resolve(here, '..', '..');
 const MAX_BYTES = 400_000;
+// 무료 등급으로 쓴다(2026-11-18 HJ 결정). Pro는 무료 등급에서 빠졌으므로 Flash를 명시한다.
+// 유료로 바꾸거나 모델 이름이 달라지면 PC 사용자 환경 변수 GEMINI_REVIEW_MODEL로 바꾼다.
+export const reviewModel = (env = process.env) => env.GEMINI_REVIEW_MODEL || 'flash';
 
 export function stripFrontmatter(text) { return String(text).replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, ''); }
 
@@ -47,7 +50,7 @@ export function runGemini(prompt, {spawnFn = spawn, timeoutMs = 300_000} = {}) {
     const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'gemini-review-'));
     const win = process.platform === 'win32';
     // 프롬프트 전체는 stdin으로 넘긴다. -p는 비대화형 실행을 켜는 짧은 지시만 담는다.
-    const child = spawnFn(win ? 'gemini.cmd' : 'gemini', ['-p', '위 입력의 지침대로 채점하라.'], {cwd, shell: win, windowsHide: true});
+    const child = spawnFn(win ? 'gemini.cmd' : 'gemini', ['-m', reviewModel(), '-p', '위 입력의 지침대로 채점하라.'], {cwd, shell: win, windowsHide: true});
     let out = '', err = '';
     const timer = setTimeout(() => { child.kill(); reject(new Error('Gemini 응답 시간 초과')); }, timeoutMs);
     child.stdout.on('data', d => { out += d; });
@@ -69,7 +72,7 @@ async function main() {
     rubric: fs.readFileSync(path.join(hqRoot, 'agents', 'subagents', 'reviewer.md'), 'utf8'),
     criteria: read(criteria), files: files.map(read),
   });
-  process.stdout.write('[리뷰어: Gemini]\n' + await runGemini(prompt) + '\n');
+  process.stdout.write(`[리뷰어: Gemini ${reviewModel()}]\n` + await runGemini(prompt) + '\n');
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch(e => { console.error(e.message); process.exit(1); });
