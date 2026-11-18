@@ -33,3 +33,4 @@ HJ가 확정한 운영 결정을 날짜순으로 쌓는다. 프로젝트 고유 
 | 2026-11-17 | 봇끼리 6회 제한은 Issue 번호별로 센다(협의는 스레드 단위) | HJ 결정 (선택지 1). 코드는 hq PR #9 |
 | 2026-11-17 | Our Adventure PC의 `test-tools` 작업 트리는 인증·운영 파일이 있어 그대로 두고 #33을 예외로 닫는다 | HJ 결정 (선택지 1) |
 | 2026-11-18 | Cap(Codex)은 사용 한도에 걸리면 등록된 다른 business 계정으로 자동 전환해 한 번 다시 시도한다. 한도 외 오류로는 계정을 바꾸지 않는다 | HJ 결정 (B안). 코드 hq PR #10, 절차 docs/runbooks/codex-account-switch.md |
+| 2026-11-18 | 리뷰어(심사위원) 채점은 Gemini CLI로 한다. 개발(Cap)은 Codex 그대로. Gemini 로그인은 HJ가 PC에서 한다 | HJ 결정. 코드 hq PR #11 |
