@@ -34,5 +34,5 @@ test('runGemini sends the prompt on stdin from an empty temp folder and returns 
 });
 
 test('runGemini explains a missing login', async () => {
-  await assert.rejects(runGemini('P', {spawnFn: fakeSpawn({code: 41})}), /로그인이 필요/);
+  await assert.rejects(runGemini('P', {spawnFn: fakeSpawn({code: 41})}), /GEMINI_API_KEY/);
 });
