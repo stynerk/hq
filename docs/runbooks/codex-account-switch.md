@@ -12,8 +12,6 @@ $f = "C:\Users\styne\orca\discord-codex\private\routing.json"; $j = Get-Content 
 
 설정 뒤 Cap을 재시작한다(아래 재시작 줄). 아래 수동 전환은 자동 전환이 안 될 때만 쓴다.
 
-## 수동 전환
-
 ## 계정 폴더
 
 | 이름 | 경로 |
@@ -28,7 +26,9 @@ $env:CODEX_HOME = "C:\Users\styne\orca\codex-accounts\<이름>"; codex.cmd login
 ```
 
 
-PowerShell에서 한 줄씩 실행한다. 첫 줄의 경로만 바꾼다.
+## 수동 전환
+
+자동 전환이 안 될 때만 쓴다. PowerShell에서 한 줄씩 실행한다. 첫 줄의 경로만 바꾼다.
 
 ```
 $f = "C:\Users\styne\orca\discord-codex\private\routing.json"; $j = Get-Content $f -Raw | ConvertFrom-Json; $j.profiles.business.home = "<위 표의 경로>"; [IO.File]::WriteAllText($f, ($j | ConvertTo-Json -Depth 10))
