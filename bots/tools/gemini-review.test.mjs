@@ -30,7 +30,7 @@ test('runGemini sends the prompt on stdin from an empty temp folder and returns 
   let seen;
   const out = await runGemini('PROMPT', {command: {cmd: 'gemini', pre: []}, spawnFn: fakeSpawn({stdout: '판정: 통과\n', onSpawn: (cmd, args, opts) => { seen = {cmd, args, opts}; }})});
   assert.equal(out, '판정: 통과');
-  assert.ok(seen.args.includes('-p')); assert.equal(seen.opts.shell, undefined); assert.equal(seen.args[seen.args.indexOf('-p') + 1], '위 입력의 지침대로 채점하라.'); assert.equal(seen.args[seen.args.indexOf('-m') + 1], reviewModel()); assert.match(seen.opts.cwd, /gemini-review-/);
+  assert.ok(seen.args.includes('-p')); assert.equal(seen.opts.shell, undefined); assert.ok(seen.args.includes('--skip-trust')); assert.equal(seen.args[seen.args.indexOf('-p') + 1], '위 입력의 지침대로 채점하라.'); assert.equal(seen.args[seen.args.indexOf('-m') + 1], reviewModel()); assert.match(seen.opts.cwd, /gemini-review-/);
 });
 
 test('runGemini explains a missing login', async () => {
