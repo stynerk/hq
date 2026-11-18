@@ -30,7 +30,7 @@ export function claudeArgs(promptFile,{sessionId,consult=false}={}) {
   // --tools takes tool names only (Bash), --allowedTools takes permission rules (Bash(git *)).
   // In -p mode an unapproved Bash command is denied, so only git/gh run.
   const tools=consult?['Read','Glob','Grep']:['Read','Edit','Write','Glob','Grep','WebSearch','WebFetch','Task','TodoWrite','Bash'];
-  const allowed=consult?tools:[...tools.filter(t=>t!=='Bash'),'Bash(git *)','Bash(gh *)'];
+  const allowed=consult?tools:[...tools.filter(t=>t!=='Bash'),'Bash(git *)','Bash(gh *)','Bash(node *gemini-review.mjs *)'];
   // --strict-mcp-config: user/plugin MCP servers (e.g. the old Discord plugin) must not load in relay sessions.
   const args=['-p','--output-format','json','--append-system-prompt-file',promptFile,'--permission-mode',consult?'plan':'acceptEdits','--strict-mcp-config','--tools',tools.join(','),'--allowedTools',...allowed];
   if(sessionId)args.push('--resume',sessionId);return args;
