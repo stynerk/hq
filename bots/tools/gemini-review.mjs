@@ -61,7 +61,8 @@ export function runGemini(prompt, {spawnFn = spawn, timeoutMs = 300_000, command
   return new Promise((resolve, reject) => {
     const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'gemini-review-'));
     // 프롬프트 전체는 stdin으로 넘긴다. -p는 비대화형 실행을 켜는 짧은 지시만 담는다. shell은 쓰지 않는다.
-    const child = spawnFn(command.cmd, [...command.pre, '-m', reviewModel(), '-p', '위 입력의 지침대로 채점하라.'], {cwd, windowsHide: true});
+    // 매번 새 빈 임시 폴더라 대화형으로 신뢰해 둘 수 없다. 이 폴더 하나만 신뢰한다(--skip-trust, 2026-11-18 종료 코드 55).
+    const child = spawnFn(command.cmd, [...command.pre, '--skip-trust', '-m', reviewModel(), '-p', '위 입력의 지침대로 채점하라.'], {cwd, windowsHide: true});
     let out = '', err = '';
     const timer = setTimeout(() => { child.kill(); reject(new Error('Gemini 응답 시간 초과')); }, timeoutMs);
     child.stdout.on('data', d => { out += d; });
