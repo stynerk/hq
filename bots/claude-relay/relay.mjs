@@ -7,7 +7,7 @@ import {Registry,updateFrontmatter,locate} from '../shared/registry.mjs';
 import {classify,ExchangeCounter,chunk,refreshProjectRoute} from '../shared/routing.mjs';
 import {LaneQueue,readJSON,saveJSON,dpapi,readEncryptedToken,importedToken,serviceWorkspace,runClaude,relayInstructions} from './runtime.mjs';
 import {initHQ,newProject,commitRegistry} from './provision.mjs';
-import {dueRuns,describeSchedules} from '../shared/schedule.mjs';
+import {dueRuns,describeSchedules,scheduleChannelId} from '../shared/schedule.mjs';
 const here=path.dirname(fileURLToPath(import.meta.url));
 const hqRoot=process.env.HQ_ROOT||path.resolve(here,'../..');
 const privateDir=process.env.CLAUDE_PRIVATE_DIR||path.join(here,'private');fs.mkdirSync(privateDir,{recursive:true});
@@ -26,14 +26,15 @@ if(!config?.tokenEncrypted){
 const bot=new Client({intents:[GatewayIntentBits.Guilds,GatewayIntentBits.GuildMessages,GatewayIntentBits.DirectMessages,GatewayIntentBits.MessageContent],partials:[Partials.Channel]});
 const queue=new LaneQueue();for(const id of state.seen)queue.seen.add(id);
 const counter=new ExchangeCounter();const unregistered=new Set();let adminBusy=false;
-const send=async(channel,text,peer=null)=>{for(const content of chunk(text))await channel.send({content,allowedMentions:{parse:[],users:peer?[peer]:[],repliedUser:false}});};
+const send=async(channel,text,peer=null)=>{const users=(Array.isArray(peer)?peer:[peer]).filter(Boolean);for(const content of chunk(text))await channel.send({content,allowedMentions:{parse:[],users,repliedUser:false}});};
 const sessionKey=(route,m)=>`${route.lane}|${m.channel.id}|${route.mode==='consult'?'consult':'work'}`;
 async function runMessage(m,route,signal,extra=''){
   const reg=registry.get();route=refreshProjectRoute(route,reg,m.channel);const key=sessionKey(route,m);const cwd=route.project?(route.mode==='consult'?route.project.localPath:await serviceWorkspace(route.project)):hqRoot;if(signal.aborted)return;
   const system=relayInstructions(route,reg);
   const result=await runClaude({cwd,prompt:route.text+'\n'+extra,system,sessionId:state.sessions[key],consult:route.mode==='consult',signal});
   if(signal.aborted)return;if(result.session_id){state.sessions[key]=result.session_id;saveJSON(stateFile,state);}
-  const peer=route.place==='dev'?reg.codexBotId:null;await send(m.channel,result.result||'(빈 응답)',peer);
+  // 예약 실행은 HJ가 보고 있지 않으므로 HJ 멘션이 알림으로 가게 허용한다.
+  const peers=[route.place==='dev'?reg.codexBotId:null,route.scheduled?reg.ownerId:null];await send(m.channel,result.result||'(빈 응답)',peers);
 }
 async function handle(m){
   const reg=registry.get();if(reg.errors.length||registry.lastError)return;
@@ -79,10 +80,12 @@ async function scheduleTick(){
   const {due,runs}=dueRuns(reg.projects,state.schedule,Date.now());
   if(JSON.stringify(runs)!==JSON.stringify(state.schedule.runs)){state.schedule.runs=runs;saveJSON(stateFile,state);}
   for(const {project,schedule,key,occurrence} of due){
-    let channel=null;try{channel=await bot.channels.fetch(project.channelId);}catch{}
+    let channel=null;try{channel=await bot.channels.fetch(scheduleChannelId(project,schedule));}catch{}
     if(!channel){console.error('예약 채널을 찾을 수 없습니다: '+key);continue;}
     const m={id:`schedule:${key}:${occurrence}`,channel};
-    const route={kind:'chat',lane:project.slug,role:'service-pm',project,place:'main',mode:'owner',text:`[예약 점검 ${schedule.at} KST] ${schedule.prompt}`};
+    const where=schedule.place==='dev'?'dev 스레드에서 실행. 개발PM 인계는 이 답의 첫 줄 인계 형식으로 한 번에 Issue 하나만 한다':'프로젝트 채널에서 실행. 개발PM 인계는 하지 않는다';
+    const text=`[예약 점검 ${schedule.at} KST, ${where}] ${schedule.prompt}\nHJ 결정이 필요한 항목이 있으면 본문에 <@${reg.ownerId}>를 멘션하고 선택지와 추천안을 쓴다. 없으면 멘션하지 않는다.`;
+    const route={kind:'chat',lane:project.slug,role:'service-pm',project,place:schedule.place,mode:'owner',scheduled:true,text};
     queue.enqueue(project.slug,m.id,signal=>runMessage(m,route,signal).catch(e=>send(channel,'예약 점검 실패: '+e.message)));
   }
 }

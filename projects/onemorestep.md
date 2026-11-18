@@ -14,17 +14,36 @@ agents:
   dev_pm:
     name: Cap
     persona: 기본 페르소나와 같다. 시연 안정성을 최우선으로 본다.
-# 예약 점검(hq Issue #15, HJ 지시 2026-11-18). 시각은 KST. 릴레이가 이 채널에서 서비스PM을 실행한다.
+# 예약 점검(hq Issue #15, HJ 지시 2026-11-18·19). 시각은 KST. 릴레이가 dev 스레드에서 서비스PM을 실행한다(A안: 막힌 작업을 바로 Cap에게 인계).
 schedules:
   - id: check-1000
     at: "10:00"
-    prompt: 정기 점검(예약 실행). 열린 PR·Issue를 확인하고 Tony 검토 대기를 먼저 처리한다. MVP.md 일정과 대조해 늦은 작업을 짚는다. HJ 결정이 필요한 것만 선택지와 추천안으로 올리고, 변화가 없으면 한 줄로 끝낸다.
+    place: dev
+    prompt: 정기 점검. 열린 PR·Issue를 확인하고 Tony 검토 대기를 먼저 처리한다. Cap이 Tony의 검토 결과나 다음 작업을 모른 채 멈춰 있으면 가장 급한 Issue 하나를 TASK_READY·REVIEW_CHANGES·QA_READY로 인계한다. MVP.md 일정과 대조해 늦은 작업을 짚는다. 변화가 없으면 한 줄로 끝낸다.
   - id: check-1500
     at: "15:00"
-    prompt: 정기 점검(예약 실행). 열린 PR·Issue를 확인하고 Tony 검토 대기를 먼저 처리한다. MVP.md 일정과 대조해 늦은 작업을 짚는다. HJ 결정이 필요한 것만 선택지와 추천안으로 올리고, 변화가 없으면 한 줄로 끝낸다.
+    place: dev
+    prompt: 정기 점검. 열린 PR·Issue를 확인하고 Tony 검토 대기를 먼저 처리한다. Cap이 Tony의 검토 결과나 다음 작업을 모른 채 멈춰 있으면 가장 급한 Issue 하나를 TASK_READY·REVIEW_CHANGES·QA_READY로 인계한다. MVP.md 일정과 대조해 늦은 작업을 짚는다. 변화가 없으면 한 줄로 끝낸다.
   - id: check-1800
     at: "18:00"
-    prompt: 정기 점검(예약 실행). 열린 PR·Issue를 확인하고 Tony 검토 대기를 먼저 처리한다. MVP.md 일정과 대조해 늦은 작업을 짚는다. HJ 결정이 필요한 것만 선택지와 추천안으로 올리고, 변화가 없으면 한 줄로 끝낸다.
+    place: dev
+    prompt: 정기 점검. 열린 PR·Issue를 확인하고 Tony 검토 대기를 먼저 처리한다. Cap이 Tony의 검토 결과나 다음 작업을 모른 채 멈춰 있으면 가장 급한 Issue 하나를 TASK_READY·REVIEW_CHANGES·QA_READY로 인계한다. MVP.md 일정과 대조해 늦은 작업을 짚는다. 변화가 없으면 한 줄로 끝낸다.
+  - id: check-2100
+    at: "21:00"
+    place: dev
+    prompt: 정기 점검. 열린 PR·Issue를 확인하고 Tony 검토 대기를 먼저 처리한다. Cap이 Tony의 검토 결과나 다음 작업을 모른 채 멈춰 있으면 가장 급한 Issue 하나를 TASK_READY·REVIEW_CHANGES·QA_READY로 인계한다. MVP.md 일정과 대조해 늦은 작업을 짚는다. 변화가 없으면 한 줄로 끝낸다.
+  - id: check-0000
+    at: "00:00"
+    place: dev
+    prompt: 정기 점검. 열린 PR·Issue를 확인하고 Tony 검토 대기를 먼저 처리한다. Cap이 Tony의 검토 결과나 다음 작업을 모른 채 멈춰 있으면 가장 급한 Issue 하나를 TASK_READY·REVIEW_CHANGES·QA_READY로 인계한다. MVP.md 일정과 대조해 늦은 작업을 짚는다. 변화가 없으면 한 줄로 끝낸다.
+  - id: check-0300
+    at: "03:00"
+    place: dev
+    prompt: 정기 점검. 열린 PR·Issue를 확인하고 Tony 검토 대기를 먼저 처리한다. Cap이 Tony의 검토 결과나 다음 작업을 모른 채 멈춰 있으면 가장 급한 Issue 하나를 TASK_READY·REVIEW_CHANGES·QA_READY로 인계한다. MVP.md 일정과 대조해 늦은 작업을 짚는다. 변화가 없으면 한 줄로 끝낸다.
+  - id: check-0600
+    at: "06:00"
+    place: dev
+    prompt: 정기 점검. 열린 PR·Issue를 확인하고 Tony 검토 대기를 먼저 처리한다. Cap이 Tony의 검토 결과나 다음 작업을 모른 채 멈춰 있으면 가장 급한 Issue 하나를 TASK_READY·REVIEW_CHANGES·QA_READY로 인계한다. MVP.md 일정과 대조해 늦은 작업을 짚는다. 변화가 없으면 한 줄로 끝낸다.
 gates:
   - name: 컨셉 확정
     due: 2026-11-11
