@@ -11,6 +11,12 @@ export function selectProfile(message, routing) {
 }
 export function profileSessionKey(profile, key) { return `${profile}|${key}`; }
 
+// 사용 한도 오류. 요청 오류(Error)와 turn 실패(p.turn.error: {message, codexErrorInfo}) 둘 다 받는다.
+export function isUsageLimit(e) {
+  const info = e?.codexErrorInfo ?? e?.error?.codexErrorInfo;
+  return info === 'usageLimitExceeded' || /usage limit/i.test(String(e?.message ?? e ?? ''));
+}
+
 export function discoverBusinessHome(root) {
   if (!root || !fs.existsSync(root)) return null;
   const visit = (dir, depth) => {
@@ -63,7 +69,7 @@ export class ProfileServers extends EventEmitter {
       try {
         server.on('notification', msg => this.emit('notification', {...msg, profile}));
         server.on('request', msg => this.emit('request', {...msg, id: JSON.stringify([profile, msg.id]), profile}));
-        server.on('disconnected', () => { this.servers.delete(profile); this.emit('disconnected', profile); });
+        server.on('disconnected', () => { if (server.retired) return; this.servers.delete(profile); this.emit('disconnected', profile); });
         await server.initialize();
         const {account} = await server.request('account/read', {refreshToken: false});
         if (!account || account.type !== 'chatgpt') throw new Error(`${profile}: ChatGPT 로그인이 필요합니다.`);
@@ -74,6 +80,23 @@ export class ProfileServers extends EventEmitter {
     })();
     this.servers.set(profile, pending);
     return pending;
+  }
+  // 사용 한도 때 business 계정을 routing.profiles.business.homes 목록의 다음 계정으로 바꾼다(2026-11-18 HJ 결정).
+  // 두 계정 모두 business 플랜이어야 한다. 다음 backend() 호출에서 account/read로 다시 검증하므로,
+  // business가 아닌 계정으로는 넘어가지 않는다. 목록이 2개 미만이면 null.
+  rotateBusiness() {
+    const routing = this.routing(); const b = routing.profiles?.business;
+    const homes = (b?.homes || []).filter(Boolean);
+    if (homes.length < 2) return null;
+    const next = homes[(homes.indexOf(b.home) + 1) % homes.length];
+    if (!next || next === b.home) return null;
+    b.home = next;
+    fs.writeFileSync(this.routingPath + '.tmp', JSON.stringify(routing, null, 2));
+    fs.renameSync(this.routingPath + '.tmp', this.routingPath);
+    const pending = this.servers.get('business'); this.servers.delete('business');
+    if (pending) void pending.then(s => { s.retired = true; s.close(); }).catch(() => {});
+    for (const [thread, profile] of this.threads) if (profile === 'business') this.threads.delete(thread);
+    return next;
   }
   async initialize() { await this.backend(this.routing().businessOnly ? 'business' : 'personal'); }
   async request(method, params = {}) {
