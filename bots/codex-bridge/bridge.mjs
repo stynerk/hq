@@ -10,7 +10,7 @@ import {Registry, locate} from '../shared/registry.mjs';
 import {classify, ExchangeCounter, refreshProjectRoute} from '../shared/routing.mjs';
 import {LaneJobs} from '../shared/lane-jobs.mjs';
 import {executionContext, trustedAttachmentSource, canRequestApproval} from './policy.mjs';
-import { ProfileServers, selectProfile, profileSessionKey } from './profiles.mjs';
+import { ProfileServers, selectProfile, profileSessionKey, isUsageLimit } from './profiles.mjs';
 import { openThread } from './sessions.mjs';
 import { AttachmentStore, attachmentList } from './attachments.mjs';
 
@@ -130,6 +130,9 @@ async function handleNotification({method, params: p, profile}) {
     const done = active; clearApprovals(done.threadId);
     if (done.typing) clearInterval(done.typing);
     const answer = [...done.messages.values()].join('\n\n');
+    if (p.turn.status === 'failed' && isUsageLimit(p.turn.error) && !done.retried) {
+      lane.active = null; void failover(done.m, done.route, lane, p.turn.error); return;
+    }
     try {
     await send(done.channel, answer || (p.turn.status === 'interrupted' ? '작업을 중지했습니다.' : p.turn.error?.message || '작업을 완료했습니다.'));
     if (p.turn.status === 'failed' && answer) await send(done.channel, '작업 실패: ' + (p.turn.error?.message || '원인 확인 필요'));
@@ -208,7 +211,21 @@ async function handleMessage(m) {
   }
   await executeMessage(m, route, lane);
 }
-async function executeMessage(m, route, lane) {
+// 사용 한도에 걸리면 등록된 다른 business 계정으로 바꾸고 같은 요청을 한 번만 다시 시도한다.
+async function failover(m, route, lane, error) {
+  lane.starting = true;
+  let next = null;
+  try { next = rpc.rotateBusiness(); } catch {}
+  if (!next) {
+    lane.starting = false;
+    await send(m.channel, `Codex 사용 한도: ${error?.message || '한도 초과'}\n전환할 다른 계정이 없습니다. 한도가 풀리면 다시 요청하세요.`).catch(() => {});
+    return drain(lane);
+  }
+  await send(m.channel, `Codex 계정 한도에 걸려 다른 계정(${path.basename(next)})으로 바꿔 같은 요청을 다시 시도합니다.`).catch(() => {});
+  lane.starting = false;
+  return executeMessage(m, route, lane, {retried: true});
+}
+async function executeMessage(m, route, lane, {retried = false} = {}) {
   lane.starting = true;
   const epoch = lane.epoch;
   try {
@@ -224,7 +241,7 @@ async function executeMessage(m, route, lane) {
     const opened = await openThread(rpc, state.sessions, key, opts, () => save(statePath, state));
     if (opened.reset) await send(m.channel, '이전 대화를 이 계정에서 찾지 못해 새 대화로 시작합니다. 진행 중이던 작업은 Issue·PR 기준으로 이어 갑니다.');
     if (epoch !== lane.epoch) return;
-    const active = {profile: 'business', readOnly: ctx.sandbox === 'read-only', sandbox: ctx.sandbox, key, threadId: state.sessions[key], channel: m.channel, messages: new Map(), turnId: null};
+    const active = {m, route, retried, profile: 'business', readOnly: ctx.sandbox === 'read-only', sandbox: ctx.sandbox, key, threadId: state.sessions[key], channel: m.channel, messages: new Map(), turnId: null};
     lane.active = active;
     await m.channel.sendTyping();
     if (epoch !== lane.epoch) { lane.active = null; return; }
@@ -235,8 +252,10 @@ async function executeMessage(m, route, lane) {
   } catch (e) {
     if (lane.active?.typing) clearInterval(lane.active.typing);
     lane.active = null;
+    // failover가 끝날 때까지 기다린다. 그 안의 재시도가 대기열을 직접 이어 가므로 아래 finally는 건너뛴다.
+    if (isUsageLimit(e) && !retried) { lane.starting = false; await failover(m, route, lane, e); return; }
     await send(m.channel, `Codex 요청 실패: ${e.message}\n세션 오류라면 !new로 초기화하세요.`);
-  } finally { lane.starting = false; drain(lane); }
+  } finally { if (lane.starting) { lane.starting = false; drain(lane); } }
 }
 
 const setupKey = crypto.randomBytes(24).toString('hex');
