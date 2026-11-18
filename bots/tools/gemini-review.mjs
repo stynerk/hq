@@ -5,7 +5,8 @@
 // 사용: node <hq>/bots/tools/gemini-review.mjs --criteria <기준 파일> <평가할 파일...>
 //   기준 파일: 대회 배점표, 성공 지표, QA 체크리스트 등 서비스PM이 넘기는 채점 기준
 // Gemini는 빈 임시 폴더에서 비대화형으로 실행한다. 저장소 파일을 직접 읽거나 고치지 못하고,
-// 이 스크립트가 넘긴 내용만 본다. 로그인은 PC에서 HJ가 `gemini.cmd`로 한 번 해 둔다.
+// 이 스크립트가 넘긴 내용만 본다. 인증은 HJ가 PC 사용자 환경 변수 GEMINI_API_KEY에 넣어 둔 API 키를 쓴다.
+// (2026-06-18부터 개인 Google 계정 로그인으로는 Gemini CLI를 쓸 수 없다.)
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -55,7 +56,7 @@ export function runGemini(prompt, {spawnFn = spawn, timeoutMs = 300_000} = {}) {
     child.on('close', code => {
       clearTimeout(timer); fs.rmSync(cwd, {recursive: true, force: true});
       if (code === 0 && out.trim()) resolve(out.trim());
-      else reject(new Error(code === 41 ? 'Gemini 로그인이 필요합니다. PC에서 gemini.cmd로 로그인하세요.' : `Gemini 실패(종료 코드 ${code}): ${err.trim().split('\n').slice(-3).join(' ')}`));
+      else reject(new Error(code === 41 ? 'Gemini 인증이 없습니다. PC의 사용자 환경 변수 GEMINI_API_KEY를 확인하고 봇을 재시작하세요.' : `Gemini 실패(종료 코드 ${code}): ${err.trim().split('\n').slice(-3).join(' ')}`));
     });
     child.stdin.end(prompt);
   });
