@@ -45,12 +45,23 @@ export function buildPrompt({rubric, criteria, files}) {
   ].join('\n');
 }
 
-export function runGemini(prompt, {spawnFn = spawn, timeoutMs = 300_000} = {}) {
+// Windows에서 gemini.cmd를 shell로 실행하면 인자가 따옴표 없이 이어 붙여져 띄어쓰기마다 쪼개진다
+// (2026-11-18 첫 실행에서 도움말만 출력). 설치된 패키지의 진입 파일을 node로 직접 실행해 shell을 거치지 않는다.
+export function geminiCommand({platform = process.platform, env = process.env, exists = fs.existsSync, readFile = fs.readFileSync} = {}) {
+  if (platform !== 'win32') return {cmd: 'gemini', pre: []};
+  const root = path.join(env.APPDATA || '', 'npm', 'node_modules', '@google', 'gemini-cli');
+  let bin = 'bundle/gemini.js';
+  try { const pkg = JSON.parse(readFile(path.join(root, 'package.json'), 'utf8')); bin = typeof pkg.bin === 'string' ? pkg.bin : (pkg.bin?.gemini || bin); } catch {}
+  const entry = path.join(root, bin);
+  if (!exists(entry)) throw new Error(`Gemini CLI를 찾지 못했습니다(${entry}). PC에서 npm.cmd install -g @google/gemini-cli를 확인하세요.`);
+  return {cmd: process.execPath, pre: [entry]};
+}
+
+export function runGemini(prompt, {spawnFn = spawn, timeoutMs = 300_000, command = geminiCommand()} = {}) {
   return new Promise((resolve, reject) => {
     const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'gemini-review-'));
-    const win = process.platform === 'win32';
-    // 프롬프트 전체는 stdin으로 넘긴다. -p는 비대화형 실행을 켜는 짧은 지시만 담는다.
-    const child = spawnFn(win ? 'gemini.cmd' : 'gemini', ['-m', reviewModel(), '-p', '위 입력의 지침대로 채점하라.'], {cwd, shell: win, windowsHide: true});
+    // 프롬프트 전체는 stdin으로 넘긴다. -p는 비대화형 실행을 켜는 짧은 지시만 담는다. shell은 쓰지 않는다.
+    const child = spawnFn(command.cmd, [...command.pre, '-m', reviewModel(), '-p', '위 입력의 지침대로 채점하라.'], {cwd, windowsHide: true});
     let out = '', err = '';
     const timer = setTimeout(() => { child.kill(); reject(new Error('Gemini 응답 시간 초과')); }, timeoutMs);
     child.stdout.on('data', d => { out += d; });
