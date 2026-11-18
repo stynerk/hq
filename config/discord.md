@@ -30,6 +30,7 @@ project_channels:
   onemorestep:
     channel_id: "1570085138774233170"
     dev_thread_id: "1571771769461809153"
+    github_notifications: dev_thread  # 2026-11-19 웹후크를 새로 만들고 ?thread_id로 dev 스레드에 올림. 웹후크 주소는 비밀이라 기록하지 않는다
   our-adventure:
     channel_id: "1572005322837725184"
     dev_thread_id: "1572005326054629397"
