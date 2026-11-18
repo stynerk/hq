@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {EventEmitter} from 'node:events';
 import {PassThrough} from 'node:stream';
-import {parseArgs, buildPrompt, stripFrontmatter, runGemini, reviewModel, geminiCommand} from './gemini-review.mjs';
+import {parseArgs, buildPrompt, stripFrontmatter, runGemini, reviewModel, geminiCommand, stripHeader} from './gemini-review.mjs';
 
 test('parseArgs requires criteria and at least one file', () => {
   assert.deepEqual(parseArgs(['--criteria', 'c.md', 'a.md', 'b.md']), {criteria: 'c.md', files: ['a.md', 'b.md']});
@@ -48,4 +48,9 @@ test('geminiCommand runs the installed entry with node on Windows, without a she
   assert.match(c.pre[0].replaceAll('\\', '/'), /@google\/gemini-cli\/bundle\/gemini\.js$/);
   assert.deepEqual(geminiCommand({platform: 'linux'}), {cmd: 'gemini', pre: []});
   assert.throws(() => geminiCommand({platform: 'win32', env: {APPDATA: 'X'}, exists: () => false, readFile: () => '{}'}), /찾지 못했습니다/);
+});
+
+test('stripHeader removes a header Gemini copied from the rubric', () => {
+  assert.equal(stripHeader('[리뷰어: Gemini]\n판정: 반려'), '판정: 반려');
+  assert.equal(stripHeader('판정: 통과'), '판정: 통과');
 });

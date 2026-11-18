@@ -57,6 +57,9 @@ export function geminiCommand({platform = process.platform, env = process.env, e
   return {cmd: process.execPath, pre: [entry]};
 }
 
+// 리뷰어 지침에 "출력은 [리뷰어: Gemini]로 시작"이 있어 Gemini가 머리표를 따라 쓰기도 한다. 머리표는 스크립트가 한 번만 붙인다.
+export const stripHeader = text => String(text).replace(/^\s*\[리뷰어:[^\]\n]*\]\s*\n?/, '');
+
 export function runGemini(prompt, {spawnFn = spawn, timeoutMs = 300_000, command = geminiCommand()} = {}) {
   return new Promise((resolve, reject) => {
     const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'gemini-review-'));
@@ -84,7 +87,7 @@ async function main() {
     rubric: fs.readFileSync(path.join(hqRoot, 'agents', 'subagents', 'reviewer.md'), 'utf8'),
     criteria: read(criteria), files: files.map(read),
   });
-  process.stdout.write(`[리뷰어: Gemini ${reviewModel()}]\n` + await runGemini(prompt) + '\n');
+  process.stdout.write(`[리뷰어: Gemini ${reviewModel()}]\n` + stripHeader(await runGemini(prompt)) + '\n');
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch(e => { console.error(e.message); process.exit(1); });

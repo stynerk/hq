@@ -19,6 +19,7 @@ test('relay instructions use registry identities despite legacy project guidance
  assert.ok(text.indexOf('Legacy PM_Sora')<text.indexOf('현재 hq 레지스트리'));
  assert.ok(text.includes('최종 답은 릴레이가')&&text.includes('디스코드 도구(fetch_messages'));
  assert.ok(text.includes('로컬에만 커밋을 남기지 않는다'));
+ assert.ok(text.includes('다른 브랜치를 checkout하지 않는다'));
  assert.ok(text.indexOf('첫 줄을 아래 인계 형식')<text.indexOf('<@current-cap> TASK_READY #번호'));
 });
 
