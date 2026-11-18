@@ -11,6 +11,7 @@ import {classify, ExchangeCounter, refreshProjectRoute} from '../shared/routing.
 import {LaneJobs} from '../shared/lane-jobs.mjs';
 import {executionContext, trustedAttachmentSource, canRequestApproval} from './policy.mjs';
 import { ProfileServers, selectProfile, profileSessionKey } from './profiles.mjs';
+import { openThread } from './sessions.mjs';
 import { AttachmentStore, attachmentList } from './attachments.mjs';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
@@ -220,10 +221,8 @@ async function executeMessage(m, route, lane) {
     if (prepared.errors.length) await send(m.channel, '첨부 처리 실패:\n' + prepared.errors.join('\n'));
     if (prepared.blocked || epoch !== lane.epoch) return;
     const opts = {$profile: 'business', cwd: ctx.cwd, sandbox: ctx.sandbox, approvalPolicy: ctx.sandbox === 'read-only' ? 'never' : 'on-request', approvalsReviewer: 'auto_review', developerInstructions: ctx.developerInstructions};
-    if (!state.sessions[key]) {
-      const result = await rpc.request('thread/start', opts);
-      state.sessions[key] = result.thread.id; save(statePath, state);
-    } else await rpc.request('thread/resume', {threadId: state.sessions[key], ...opts});
+    const opened = await openThread(rpc, state.sessions, key, opts, () => save(statePath, state));
+    if (opened.reset) await send(m.channel, '이전 대화를 이 계정에서 찾지 못해 새 대화로 시작합니다. 진행 중이던 작업은 Issue·PR 기준으로 이어 갑니다.');
     if (epoch !== lane.epoch) return;
     const active = {profile: 'business', readOnly: ctx.sandbox === 'read-only', sandbox: ctx.sandbox, key, threadId: state.sessions[key], channel: m.channel, messages: new Map(), turnId: null};
     lane.active = active;
