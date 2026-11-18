@@ -7,6 +7,7 @@ import {Registry,updateFrontmatter,locate} from '../shared/registry.mjs';
 import {classify,ExchangeCounter,chunk,refreshProjectRoute} from '../shared/routing.mjs';
 import {LaneQueue,readJSON,saveJSON,dpapi,readEncryptedToken,importedToken,serviceWorkspace,runClaude,relayInstructions} from './runtime.mjs';
 import {initHQ,newProject,commitRegistry} from './provision.mjs';
+import {dueRuns,describeSchedules} from '../shared/schedule.mjs';
 const here=path.dirname(fileURLToPath(import.meta.url));
 const hqRoot=process.env.HQ_ROOT||path.resolve(here,'../..');
 const privateDir=process.env.CLAUDE_PRIVATE_DIR||path.join(here,'private');fs.mkdirSync(privateDir,{recursive:true});
@@ -15,7 +16,7 @@ if(fs.existsSync(lock)){const pid=Number(fs.readFileSync(lock,'utf8'));let live=
 process.on('exit',()=>{try{if(fs.readFileSync(lock,'utf8')===String(process.pid))fs.unlinkSync(lock);}catch{}});
 const registry=new Registry(hqRoot);if(registry.get().errors.length)throw new Error(registry.get().errors.join('\n'));
 const configFile=path.join(privateDir,'config.json');const stateFile=path.join(privateDir,'state.json');
-let config=readJSON(configFile,null);const state=readJSON(stateFile,{sessions:{},seen:[]});state.sessions??={};state.seen??=[];
+let config=readJSON(configFile,null);const state=readJSON(stateFile,{sessions:{},seen:[]});state.sessions??={};state.seen??=[];state.schedule??={};state.schedule.runs??={};state.schedule.paused??={};
 if(!config?.tokenEncrypted){
   let token=importedToken(path.join(os.homedir(),'.claude','channels','discord','.env'));
   if(token)config={tokenEncrypted:await dpapi(token)};
@@ -57,13 +58,37 @@ async function handle(m){
         await send(m.channel,'디스코드 구성을 저장했습니다.');if(extra)queue.enqueue('hq',m.id,signal=>runMessage(m,{kind:'chat',lane:'hq',role:'hq-lead',mode:'owner',text:extra},signal).catch(e=>send(m.channel,e.message)));
       }finally{adminBusy=false;}return;
     }
-    return send(m.channel,'명령: !status, !new, !stop, !hq init, !project new <slug> <owner/repo>');
+    if(route.text==='!schedule'||route.text.startsWith('!schedule ')){
+      if(!route.project)return send(m.channel,'!schedule은 프로젝트 채널에서 사용하세요.');
+      const sub=route.text.split(/\s+/)[1]||'list';
+      if(sub==='pause'){state.schedule.paused[lane]=true;saveJSON(stateFile,state);return send(m.channel,`${lane} 예약 점검을 멈췄습니다. !schedule resume으로 다시 켭니다.`);}
+      if(sub==='resume'){delete state.schedule.paused[lane];saveJSON(stateFile,state);return send(m.channel,`${lane} 예약 점검을 다시 켰습니다. 다음 회차부터 실행합니다.`);}
+      if(sub!=='list')return send(m.channel,'형식: !schedule list | pause | resume');
+      const errs=route.project.scheduleErrors?.length?'\n예약 정의 오류:\n'+route.project.scheduleErrors.join('\n'):'';
+      return send(m.channel,describeSchedules(route.project,state.schedule,Date.now())+errs);
+    }
+    return send(m.channel,'명령: !status, !new, !stop, !schedule [list|pause|resume], !hq init, !project new <slug> <owner/repo>');
   }
   if(m.attachments?.size)return send(m.channel,'Claude 릴레이 첨부 처리는 아직 지원하지 않습니다. Git 문서 경로 또는 텍스트를 보내세요.');
   const accepted=queue.enqueue(route.lane,m.id,signal=>runMessage(m,route,signal).catch(e=>send(m.channel,e.message)));
   if(accepted){state.seen.push(m.id);state.seen=state.seen.slice(-10000);saveJSON(stateFile,state);}
 }
+// 예약 점검(hq Issue #15): 30초마다 회차를 확인해 프로젝트 대기열에 넣는다. 회차는 넣기 전에 저장해 재시작해도 두 번 돌지 않는다.
+async function scheduleTick(){
+  const reg=registry.get();if(reg.errors.length||registry.lastError||!bot.isReady())return;
+  const {due,runs}=dueRuns(reg.projects,state.schedule,Date.now());
+  if(JSON.stringify(runs)!==JSON.stringify(state.schedule.runs)){state.schedule.runs=runs;saveJSON(stateFile,state);}
+  for(const {project,schedule,key,occurrence} of due){
+    let channel=null;try{channel=await bot.channels.fetch(project.channelId);}catch{}
+    if(!channel){console.error('예약 채널을 찾을 수 없습니다: '+key);continue;}
+    const m={id:`schedule:${key}:${occurrence}`,channel};
+    const route={kind:'chat',lane:project.slug,role:'service-pm',project,place:'main',mode:'owner',text:`[예약 점검 ${schedule.at} KST] ${schedule.prompt}`};
+    queue.enqueue(project.slug,m.id,signal=>runMessage(m,route,signal).catch(e=>send(channel,'예약 점검 실패: '+e.message)));
+  }
+}
+let scheduleTimer=null;
+bot.once('clientReady',()=>{scheduleTimer=setInterval(()=>{void scheduleTick().catch(e=>console.error('예약 점검 확인 실패: '+e.message));},30000);});
 bot.once('clientReady',()=>{if(registry.get().claudeBotId!==bot.user.id)console.warn('Claude bot identity differs from registry; updating to authenticated bot ID.');const file=path.join(hqRoot,'config','discord.md');updateFrontmatter(file,d=>{d.bots.claude_relay.user_id=bot.user.id;d.bots.claude_relay.verified=true;});registry.reload();console.log('Claude relay connected.');});
 bot.on('messageCreate',m=>{void handle(m).catch(e=>send(m.channel,e.message).catch(()=>{}));});bot.on('error',()=>console.error('Discord connection error.'));
-const shutdown=()=>{for(const lane of queue.lanes.keys())queue.stop(lane);bot.destroy();process.exit(0);};process.on('SIGINT',shutdown);process.on('SIGTERM',shutdown);
+const shutdown=()=>{clearInterval(scheduleTimer);for(const lane of queue.lanes.keys())queue.stop(lane);bot.destroy();process.exit(0);};process.on('SIGINT',shutdown);process.on('SIGTERM',shutdown);
 await bot.login(await dpapi(config.tokenEncrypted,true));
