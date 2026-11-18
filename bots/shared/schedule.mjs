@@ -4,6 +4,7 @@
 //     - id: check-1000
 //       at: "10:00"          # KST(UTC+9, 서머타임 없음)
 //       prompt: 점검 문구
+//       place: dev           # dev 스레드에서 실행(개발PM 인계 가능). 생략하면 main(프로젝트 채널)
 // 같은 회차는 한 번만 실행한다. 꺼져 있다 켜지면 놓친 회차 중 가장 최근 한 번만 실행한다.
 // 처음 보는 예약은 바로 실행하지 않고 다음 회차부터 실행한다(설치·재시작 직후 갑자기 돌지 않게).
 
@@ -22,10 +23,12 @@ export function normalizeSchedules(slug, list) {
     const id = String(s?.id || '').trim();
     const at = String(s?.at || '').trim();
     const prompt = String(s?.prompt || '').trim();
+    const place = s?.place === undefined || s?.place === null ? 'main' : String(s.place).trim();
     if (!id || !timeRe.test(at) || !prompt) { errors.push(`${slug}: schedules[${i}]에 id, at(HH:MM), prompt가 필요하다`); continue; }
+    if (place !== 'main' && place !== 'dev') { errors.push(`${slug}: schedules[${i}]의 place는 main 또는 dev다`); continue; }
     if (ids.has(id)) { errors.push(`${slug}: schedules id ${id}가 겹친다`); continue; }
     ids.add(id);
-    schedules.push({id, at, prompt});
+    schedules.push({id, at, prompt, place});
   }
   return {schedules, errors};
 }
@@ -42,6 +45,10 @@ export function latestOccurrence(at, now, offsetMinutes = KST_OFFSET_MINUTES) {
 
 export const scheduleKey = (slug, id) => `${slug}|${id}`;
 
+/** 예약을 실행할 채널 ID. dev인데 dev 스레드가 없으면 null(실행하지 않는다). */
+export const scheduleChannelId = (project, schedule) =>
+  (schedule.place === 'dev' ? project.devThreadId : project.channelId) || null;
+
 /**
  * 지금 실행할 예약 목록과 새 상태를 돌려준다. 상태는 바꾸지 않는다(호출한 쪽이 저장).
  * @param projects registry.projects (slug, status, channelId, schedules)
@@ -53,8 +60,9 @@ export function dueRuns(projects, state, now) {
   const paused = state?.paused || {};
   const due = [];
   for (const project of projects) {
-    if (project.status !== 'active' || !project.channelId) continue;
+    if (project.status !== 'active') continue;
     for (const schedule of project.schedules || []) {
+      if (!scheduleChannelId(project, schedule)) continue;
       const key = scheduleKey(project.slug, schedule.id);
       const occurrence = latestOccurrence(schedule.at, now);
       const last = runs[key];
@@ -76,7 +84,7 @@ export function describeSchedules(project, state, now) {
   const fmt = ms => new Date(ms + KST_OFFSET_MINUTES * 60 * 1000).toISOString().slice(0, 16).replace('T', ' ');
   const lines = list.map(s => {
     const last = state?.runs?.[scheduleKey(project.slug, s.id)];
-    return `- ${s.at} KST (${s.id}) 마지막 회차: ${last === undefined ? '없음' : fmt(last)}`;
+    return `- ${s.at} KST (${s.id}, ${s.place === 'dev' ? 'dev 스레드' : '프로젝트 채널'}${scheduleChannelId(project, s) ? '' : ', 채널 없음'}) 마지막 회차: ${last === undefined ? '없음' : fmt(last)}`;
   });
   return [`${project.slug} 예약 ${paused ? '(일시 중지)' : '(동작 중)'}`, ...lines, `지금: ${fmt(now)} KST`].join('\n');
 }

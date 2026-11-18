@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {normalizeSchedules, latestOccurrence, dueRuns, scheduleKey, describeSchedules} from './schedule.mjs';
+import {normalizeSchedules, latestOccurrence, dueRuns, scheduleKey, scheduleChannelId, describeSchedules} from './schedule.mjs';
 
 // KST 시각을 epoch ms로.
 const kst = (y, mo, d, h, mi = 0, s = 0) => Date.UTC(y, mo - 1, d, h - 9, mi, s);
@@ -17,8 +17,11 @@ test('normalizeSchedules keeps valid entries and reports bad ones', () => {
     {id: 'a', at: '11:00', prompt: 'p'},
     {at: '12:00', prompt: 'p'},
   ]);
-  assert.deepEqual(schedules, [{id: 'a', at: '10:00', prompt: 'p'}]);
+  assert.deepEqual(schedules, [{id: 'a', at: '10:00', prompt: 'p', place: 'main'}]);
   assert.equal(errors.length, 3);
+  const placed = normalizeSchedules('oms', [{id: 'd', at: '03:00', prompt: 'p', place: 'dev'}, {id: 'x', at: '04:00', prompt: 'p', place: 'thread'}]);
+  assert.deepEqual(placed.schedules, [{id: 'd', at: '03:00', prompt: 'p', place: 'dev'}]);
+  assert.equal(placed.errors.length, 1);
   assert.deepEqual(normalizeSchedules('oms', undefined), {schedules: [], errors: []});
   assert.equal(normalizeSchedules('oms', {}).errors.length, 1);
 });
@@ -75,6 +78,18 @@ test('inactive projects and projects without a channel never run', () => {
   assert.equal(dueRuns([project()], state, now).due.length, 1);
 });
 
+test('dev schedules run only when the project has a dev thread', () => {
+  const sched = [{id: 'd', at: '03:00', prompt: 'p', place: 'dev'}];
+  const state = {runs: {[scheduleKey('oms', 'd')]: 0}, paused: {}};
+  const now = kst(2026, 11, 19, 3, 1);
+  assert.equal(dueRuns([project({devThreadId: null, schedules: sched})], state, now).due.length, 0);
+  const r = dueRuns([project({devThreadId: '222', schedules: sched})], state, now);
+  assert.equal(r.due.length, 1);
+  assert.equal(scheduleChannelId(r.due[0].project, r.due[0].schedule), '222');
+  // dev 예약은 프로젝트 채널이 없어도 dev 스레드만 있으면 돈다.
+  assert.equal(dueRuns([project({channelId: null, devThreadId: '222', schedules: sched})], state, now).due.length, 1);
+});
+
 test('dueRuns does not mutate the given state', () => {
   const state = {runs: {}, paused: {}};
   dueRuns([project()], state, kst(2026, 11, 19, 11, 0));
@@ -84,7 +99,9 @@ test('dueRuns does not mutate the given state', () => {
 test('describeSchedules lists times, last run and pause state', () => {
   const text = describeSchedules(project(), {runs: {[scheduleKey('oms', 'c10')]: kst(2026, 11, 19, 10, 0)}, paused: {oms: true}}, kst(2026, 11, 19, 11, 0));
   assert.match(text, /일시 중지/);
-  assert.match(text, /10:00 KST \(c10\) 마지막 회차: 2026-11-19 10:00/);
-  assert.match(text, /15:00 KST \(c15\) 마지막 회차: 없음/);
+  assert.match(text, /10:00 KST \(c10, 프로젝트 채널\) 마지막 회차: 2026-11-19 10:00/);
+  assert.match(text, /15:00 KST \(c15, 프로젝트 채널\) 마지막 회차: 없음/);
+  const dev = describeSchedules(project({devThreadId: null, schedules: [{id: 'd', at: '03:00', prompt: 'p', place: 'dev'}]}), {}, 0);
+  assert.match(dev, /03:00 KST \(d, dev 스레드, 채널 없음\)/);
   assert.match(describeSchedules(project({schedules: []}), {}, 0), /등록된 예약이 없습니다/);
 });
