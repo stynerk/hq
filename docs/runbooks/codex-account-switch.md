@@ -2,6 +2,18 @@
 
 Cap이 쓰는 ChatGPT 비즈니스 계정이 사용 한도에 걸렸을 때 다른 비즈니스 계정으로 바꾸는 절차. 2026-11-18 처음 사용했다.
 
+## 자동 전환 (hq PR #10 병합 뒤, 기본)
+
+`routing.json`의 `profiles.business.homes`에 계정 폴더를 2개 이상 넣으면, Cap이 사용 한도에 걸릴 때 다음 계정으로 바꿔 같은 요청을 한 번 다시 시도한다(2026-11-18 HJ 결정). 처음 한 번만 설정한다.
+
+```
+$f = "C:\Users\styne\orca\discord-codex\private\routing.json"; $j = Get-Content $f -Raw | ConvertFrom-Json; $j.profiles.business | Add-Member -Force homes @("C:\Users\styne\AppData\Roaming\orca\codex-accounts\911a8f18-40dd-4531-b696-892517e4c747\home", "C:\Users\styne\orca\codex-accounts\business2"); [IO.File]::WriteAllText($f, ($j | ConvertTo-Json -Depth 10))
+```
+
+설정 뒤 Cap을 재시작한다(아래 재시작 줄). 아래 수동 전환은 자동 전환이 안 될 때만 쓴다.
+
+## 수동 전환
+
 ## 계정 폴더
 
 | 이름 | 경로 |
@@ -15,7 +27,6 @@ Cap이 쓰는 ChatGPT 비즈니스 계정이 사용 한도에 걸렸을 때 다�
 $env:CODEX_HOME = "C:\Users\styne\orca\codex-accounts\<이름>"; codex.cmd login
 ```
 
-## 전환
 
 PowerShell에서 한 줄씩 실행한다. 첫 줄의 경로만 바꾼다.
 
