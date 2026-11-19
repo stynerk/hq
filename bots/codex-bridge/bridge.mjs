@@ -12,6 +12,7 @@ import {LaneJobs} from '../shared/lane-jobs.mjs';
 import {executionContext, trustedAttachmentSource, canRequestApproval} from './policy.mjs';
 import { ProfileServers, selectProfile, profileSessionKey, isUsageLimit } from './profiles.mjs';
 import { openThread } from './sessions.mjs';
+import { startWatchdog, discordReady } from '../shared/watchdog.mjs';
 import { AttachmentStore, attachmentList } from './attachments.mjs';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
@@ -298,6 +299,8 @@ server.listen(38471, '127.0.0.1', () => {
   console.log('Local setup ready on 127.0.0.1:38471');
 });
 if (config) { try { await startDiscord(); } catch (e) { lastError = e.message; } }
+// 디스코드 설정이 있을 때만 연결을 감시한다. 끊긴 채 살아 있으면 끝내고 run.ps1이 다시 띄운다.
+if (config) startWatchdog({isReady: () => discordReady(client), exit: () => { process.exitCode = 1; shutdown(); }});
 function shutdown() { clearApprovals(); for (const lane of jobs.lanes.values()) { if (lane.active?.typing) clearInterval(lane.active.typing); lane.queue.length = 0; } client?.destroy(); rpc.close(); server.close(); process.exit(process.exitCode || 0); }
 process.on('SIGINT', shutdown); process.on('SIGTERM', shutdown);
 

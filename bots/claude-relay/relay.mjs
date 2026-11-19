@@ -8,6 +8,7 @@ import {classify,ExchangeCounter,chunk,refreshProjectRoute} from '../shared/rout
 import {LaneQueue,readJSON,saveJSON,dpapi,readEncryptedToken,importedToken,serviceWorkspace,runClaude,relayInstructions} from './runtime.mjs';
 import {initHQ,newProject,commitRegistry} from './provision.mjs';
 import {dueRuns,describeSchedules,scheduleChannelId} from '../shared/schedule.mjs';
+import {startWatchdog,discordReady} from '../shared/watchdog.mjs';
 const here=path.dirname(fileURLToPath(import.meta.url));
 const hqRoot=process.env.HQ_ROOT||path.resolve(here,'../..');
 const privateDir=process.env.CLAUDE_PRIVATE_DIR||path.join(here,'private');fs.mkdirSync(privateDir,{recursive:true});
@@ -95,3 +96,5 @@ bot.once('clientReady',()=>{if(registry.get().claudeBotId!==bot.user.id)console.
 bot.on('messageCreate',m=>{void handle(m).catch(e=>send(m.channel,e.message).catch(()=>{}));});bot.on('error',()=>console.error('Discord connection error.'));
 const shutdown=()=>{clearInterval(scheduleTimer);for(const lane of queue.lanes.keys())queue.stop(lane);bot.destroy();process.exit(0);};process.on('SIGINT',shutdown);process.on('SIGTERM',shutdown);
 await bot.login(await dpapi(config.tokenEncrypted,true));
+// 연결이 끊긴 채 살아 있지 않도록 감시한다. 끝내면 run.ps1이 다시 띄운다.
+startWatchdog({isReady:()=>discordReady(bot),exit:()=>{clearInterval(scheduleTimer);for(const lane of queue.lanes.keys())queue.stop(lane);bot.destroy();process.exit(1);}});

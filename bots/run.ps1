@@ -9,7 +9,8 @@ $env:BRIDGE_PRIVATE_DIR = $runtime.bridgePrivateDir
 $node = (Get-Command node -ErrorAction Stop).Source
 $entry = if ($Bot -eq 'codex') { 'codex-bridge\bridge.mjs' } else { 'claude-relay\relay.mjs' }
 $log = Join-Path $botsRoot ('private\' + $Bot + '.log')
-$mutex = New-Object System.Threading.Mutex($false, ('Local\HQ-' + $Bot + '-Runner'))
+# Global: 로그아웃·로그인으로 세션이 바뀌어도 실행기가 둘 생기지 않게 한다(2026-11-18 Tony 실행기 중복, 재시작 3,700회).
+$mutex = New-Object System.Threading.Mutex($false, ('Global\HQ-' + $Bot + '-Runner'))
 if (-not $mutex.WaitOne(0)) { Write-Host 'This bot runner is already active.'; exit 0 }
 try {
   Set-Location -LiteralPath $botsRoot
