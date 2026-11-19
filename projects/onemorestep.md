@@ -20,6 +20,10 @@ schedules:
     at: "10:00"
     place: dev
     prompt: 정기 점검. 열린 PR·Issue를 확인하고 Tony 검토 대기를 먼저 처리한다. Cap이 Tony의 검토 결과나 다음 작업을 모른 채 멈춰 있으면 가장 급한 Issue 하나를 TASK_READY·REVIEW_CHANGES·QA_READY로 인계한다. MVP.md 일정과 대조해 늦은 작업을 짚는다. 변화가 없으면 한 줄로 끝낸다.
+  - id: check-1200
+    at: "12:00"
+    place: dev
+    prompt: 정기 점검. 열린 PR·Issue를 확인하고 Tony 검토 대기를 먼저 처리한다. Cap이 Tony의 검토 결과나 다음 작업을 모른 채 멈춰 있으면 가장 급한 Issue 하나를 TASK_READY·REVIEW_CHANGES·QA_READY로 인계한다. MVP.md 일정과 대조해 늦은 작업을 짚는다. 변화가 없으면 한 줄로 끝낸다.
   - id: check-1500
     at: "15:00"
     place: dev
