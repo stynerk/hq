@@ -10,6 +10,7 @@ import {initHQ,newProject,commitRegistry} from './provision.mjs';
 import {dueRuns,describeSchedules,scheduleChannelId} from '../shared/schedule.mjs';
 import {forwardMessage,startNotice} from '../shared/forward.mjs';
 import {siblingChannels,formatContext,originLine,CONTEXT_FETCH_LIMIT} from '../shared/context.mjs';
+import {idleDue,recordActivity,recordCheck,isNoop,idlePrompt} from '../shared/idle.mjs';
 import {startWatchdog,discordReady} from '../shared/watchdog.mjs';
 const here=path.dirname(fileURLToPath(import.meta.url));
 const hqRoot=process.env.HQ_ROOT||path.resolve(here,'../..');
@@ -19,7 +20,7 @@ if(fs.existsSync(lock)){const pid=Number(fs.readFileSync(lock,'utf8'));let live=
 process.on('exit',()=>{try{if(fs.readFileSync(lock,'utf8')===String(process.pid))fs.unlinkSync(lock);}catch{}});
 const registry=new Registry(hqRoot);if(registry.get().errors.length)throw new Error(registry.get().errors.join('\n'));
 const configFile=path.join(privateDir,'config.json');const stateFile=path.join(privateDir,'state.json');
-let config=readJSON(configFile,null);const state=readJSON(stateFile,{sessions:{},seen:[]});state.sessions??={};state.seen??=[];state.schedule??={};state.schedule.runs??={};state.schedule.paused??={};state.contextSeen??={};
+let config=readJSON(configFile,null);const state=readJSON(stateFile,{sessions:{},seen:[]});state.sessions??={};state.seen??=[];state.schedule??={};state.schedule.runs??={};state.schedule.paused??={};state.contextSeen??={};state.idle??={};
 if(!config?.tokenEncrypted){
   let token=importedToken(path.join(os.homedir(),'.claude','channels','discord','.env'));
   if(token)config={tokenEncrypted:await dpapi(token)};
@@ -56,6 +57,8 @@ async function runMessage(m,route,signal,extra=''){
   const prompt=(ctx.text?ctx.text+'\n\n':'')+head+route.text+'\n'+extra;
   const result=await runClaude({cwd,prompt,system,sessionId:state.sessions[key],consult:route.mode==='consult',signal});
   if(signal.aborted)return;ctx.commit();if(result.session_id){state.sessions[key]=result.session_id;saveJSON(stateFile,state);}
+  // 무응답 점검에서 할 일이 없으면 아무것도 올리지 않는다.
+  if(route.idle&&isNoop(result.result))return;
   // 예약 실행은 HJ가 보고 있지 않으므로 HJ 멘션이 알림으로 가게 허용한다.
   const peers=[route.place==='dev'?reg.codexBotId:null,route.scheduled?reg.ownerId:null];await send(m.channel,result.result||'(빈 응답)',peers);
   // hq Issue #20: dev 스레드 답에서 HJ 멘션 문단은 HJ가 보는 프로젝트 채널로도 옮긴다.
@@ -66,7 +69,10 @@ async function runMessage(m,route,signal,extra=''){
 }
 async function handle(m){
   const reg=registry.get();if(reg.errors.length||registry.lastError)return;
-  if(locate(reg,m.channel))counter.record(m,{ownerId:reg.ownerId,botIds:[reg.claudeBotId,reg.codexBotId]});
+  const where=locate(reg,m.channel);
+  if(where)counter.record(m,{ownerId:reg.ownerId,botIds:[reg.claudeBotId,reg.codexBotId]});
+  // 무응답 점검: dev 스레드에 HJ나 Cap이 글을 쓰면 활동으로 기록하고 간격을 처음으로 되돌린다.
+  if(where?.kind==='dev'&&where.project.idle&&[reg.ownerId,reg.codexBotId].includes(m.author?.id)){state.idle[where.project.slug]=recordActivity(state.idle[where.project.slug],Date.now());saveJSON(stateFile,state);}
   let repliesToSelf=false;if(m.author?.id===reg.ownerId&&m.reference?.messageId)try{repliesToSelf=(await m.fetchReference()).author.id===bot.user.id;}catch{}
   const route=classify(m,{self:'claude',reg,repliesToSelf,exchangeCount:counter.count(m)});
   if(route.kind==='ignore')return;
@@ -94,7 +100,8 @@ async function handle(m){
       if(sub==='resume'){delete state.schedule.paused[lane];saveJSON(stateFile,state);return send(m.channel,`${lane} 예약 점검을 다시 켰습니다. 다음 회차부터 실행합니다.`);}
       if(sub!=='list')return send(m.channel,'형식: !schedule list | pause | resume');
       const errs=route.project.scheduleErrors?.length?'\n예약 정의 오류:\n'+route.project.scheduleErrors.join('\n'):'';
-      return send(m.channel,describeSchedules(route.project,state.schedule,Date.now())+errs);
+      const idle=route.project.idle?`\n무응답 점검: dev 스레드가 ${route.project.idle.afterMs/60000}분 조용하면 점검, 반응이 없으면 최대 ${route.project.idle.maxMs/60000}분까지 늘림${state.schedule.paused[lane]?' (일시 중지)':''}`:'';
+      return send(m.channel,describeSchedules(route.project,state.schedule,Date.now())+idle+errs);
     }
     return send(m.channel,'명령: !status, !new, !stop, !schedule [list|pause|resume], !hq init, !project new <slug> <owner/repo>');
   }
@@ -121,8 +128,29 @@ async function scheduleTick(){
     });
   }
 }
+// 무응답 점검(HJ 결정 2026-11-19): dev 스레드에 HJ·Cap 글이 정한 시간 없으면 서비스PM을 dev 스레드에서 실행한다.
+// 할 일이 없으면 NOOP으로 조용히 끝나고, 반응이 없으면 간격을 늘린다. 예약 점검을 멈추면 함께 멈춘다.
+async function idleTick(){
+  const reg=registry.get();if(reg.errors.length||registry.lastError||!bot.isReady())return;
+  const now=Date.now();
+  for(const project of reg.projects){
+    if(project.status!=='active'||!project.idle||!project.devThreadId||state.schedule.paused[project.slug]||queue.busy(project.slug))continue;
+    if(!state.idle[project.slug]){state.idle[project.slug]=recordActivity(undefined,now);saveJSON(stateFile,state);continue;} // 새로 켠 프로젝트는 지금부터 센다
+    if(!idleDue(project.idle,state.idle[project.slug],now))continue;
+    let channel=null;try{channel=await bot.channels.fetch(project.devThreadId);}catch{}
+    if(!channel){console.error('무응답 점검 채널을 찾을 수 없습니다: '+project.slug);continue;}
+    state.idle[project.slug]=recordCheck(state.idle[project.slug],now);saveJSON(stateFile,state);
+    const m={id:`idle:${project.slug}:${now}`,channel};
+    const route={kind:'chat',lane:project.slug,role:'service-pm',project,place:'dev',mode:'owner',scheduled:true,idle:true,text:idlePrompt(Math.round(project.idle.afterMs/60000),reg.ownerId)};
+    queue.enqueue(project.slug,m.id,signal=>runMessage(m,route,signal).catch(e=>console.error('무응답 점검 실패: '+e.message)));
+  }
+}
 let scheduleTimer=null;
-bot.once('clientReady',()=>{scheduleTimer=setInterval(()=>{void scheduleTick().catch(e=>console.error('예약 점검 확인 실패: '+e.message));},30000);});
+bot.once('clientReady',()=>{
+  // 시작 직후 바로 돌지 않도록 무응답 기준점을 지금으로 잡는다.
+  const now=Date.now();for(const p of registry.get().projects)if(p.idle)state.idle[p.slug]=recordActivity(state.idle[p.slug],now);saveJSON(stateFile,state);
+  scheduleTimer=setInterval(()=>{void scheduleTick().catch(e=>console.error('예약 점검 확인 실패: '+e.message));void idleTick().catch(e=>console.error('무응답 점검 확인 실패: '+e.message));},30000);
+});
 bot.once('clientReady',()=>{if(registry.get().claudeBotId!==bot.user.id)console.warn('Claude bot identity differs from registry; updating to authenticated bot ID.');const file=path.join(hqRoot,'config','discord.md');updateFrontmatter(file,d=>{d.bots.claude_relay.user_id=bot.user.id;d.bots.claude_relay.verified=true;});registry.reload();console.log('Claude relay connected.');});
 bot.on('messageCreate',m=>{void handle(m).catch(e=>send(m.channel,e.message).catch(()=>{}));});bot.on('error',()=>console.error('Discord connection error.'));
 const shutdown=()=>{clearInterval(scheduleTimer);for(const lane of queue.lanes.keys())queue.stop(lane);bot.destroy();process.exit(0);};process.on('SIGINT',shutdown);process.on('SIGTERM',shutdown);

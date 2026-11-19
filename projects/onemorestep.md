@@ -14,6 +14,10 @@ agents:
   dev_pm:
     name: Cap
     persona: 기본 페르소나와 같다. 시연 안정성을 최우선으로 본다.
+# 무응답 점검(HJ 결정 2026-11-19): dev 스레드에 HJ·Cap 글이 30분 없으면 서비스PM이 점검. 반응이 없으면 60·120분으로 늘린다.
+idle_check:
+  after_minutes: 30
+  max_minutes: 120
 # 예약 점검(hq Issue #15, HJ 지시 2026-11-18·19). 시각은 KST. 릴레이가 dev 스레드에서 서비스PM을 실행한다(A안: 막힌 작업을 바로 Cap에게 인계).
 schedules:
   - id: check-1000
