@@ -9,6 +9,7 @@ import {LaneQueue,readJSON,saveJSON,dpapi,readEncryptedToken,importedToken,servi
 import {initHQ,newProject,commitRegistry} from './provision.mjs';
 import {dueRuns,describeSchedules,scheduleChannelId} from '../shared/schedule.mjs';
 import {forwardMessage,startNotice} from '../shared/forward.mjs';
+import {siblingChannels,formatContext,originLine,CONTEXT_FETCH_LIMIT} from '../shared/context.mjs';
 import {startWatchdog,discordReady} from '../shared/watchdog.mjs';
 const here=path.dirname(fileURLToPath(import.meta.url));
 const hqRoot=process.env.HQ_ROOT||path.resolve(here,'../..');
@@ -18,7 +19,7 @@ if(fs.existsSync(lock)){const pid=Number(fs.readFileSync(lock,'utf8'));let live=
 process.on('exit',()=>{try{if(fs.readFileSync(lock,'utf8')===String(process.pid))fs.unlinkSync(lock);}catch{}});
 const registry=new Registry(hqRoot);if(registry.get().errors.length)throw new Error(registry.get().errors.join('\n'));
 const configFile=path.join(privateDir,'config.json');const stateFile=path.join(privateDir,'state.json');
-let config=readJSON(configFile,null);const state=readJSON(stateFile,{sessions:{},seen:[]});state.sessions??={};state.seen??=[];state.schedule??={};state.schedule.runs??={};state.schedule.paused??={};
+let config=readJSON(configFile,null);const state=readJSON(stateFile,{sessions:{},seen:[]});state.sessions??={};state.seen??=[];state.schedule??={};state.schedule.runs??={};state.schedule.paused??={};state.contextSeen??={};
 if(!config?.tokenEncrypted){
   let token=importedToken(path.join(os.homedir(),'.claude','channels','discord','.env'));
   if(token)config={tokenEncrypted:await dpapi(token)};
@@ -30,11 +31,31 @@ const queue=new LaneQueue();for(const id of state.seen)queue.seen.add(id);
 const counter=new ExchangeCounter();const unregistered=new Set();let adminBusy=false;
 const send=async(channel,text,peer=null)=>{const users=(Array.isArray(peer)?peer:[peer]).filter(Boolean);for(const content of chunk(text))await channel.send({content,allowedMentions:{parse:[],users,repliedUser:false}});};
 const sessionKey=(route,m)=>`${route.lane}|${m.channel.id}|${route.mode==='consult'?'consult':'work'}`;
+// HJ 결정(2026-11-19): 같은 프로젝트의 다른 채널에서 지난번 이후 새로 오간 메시지를 가져온다.
+// 본 시점은 실행이 끝난 뒤에만 저장한다(실패·중지면 다음 실행에 다시 넣는다).
+async function siblingContext(route,m,reg){
+  if(!route.project)return {text:'',commit:()=>{}};
+  const seen=state.contextSeen[`${route.lane}|${m.channel.id}`]||{};const updates={};const parts=[];
+  for(const {id,label} of siblingChannels(route.project,m.channel.id)){
+    try{
+      const ch=await bot.channels.fetch(id);if(!ch?.messages)continue;
+      const opts={limit:CONTEXT_FETCH_LIMIT};if(seen[id])opts.after=seen[id];
+      const got=[...(await ch.messages.fetch(opts)).values()].sort((a,b)=>a.createdTimestamp-b.createdTimestamp);
+      if(!got.length)continue;updates[id]=got[got.length-1].id;
+      parts.push({label,truncated:got.length>=CONTEXT_FETCH_LIMIT,messages:got.map(x=>({authorId:x.author?.id,authorName:x.author?.username,content:x.content,createdAt:x.createdTimestamp}))});
+    }catch(e){console.error('다른 채널 기록 읽기 실패: '+e.message);}
+  }
+  const text=formatContext(parts,{ownerId:reg.ownerId,claudeBotId:reg.claudeBotId,codexBotId:reg.codexBotId});
+  return {text,commit:()=>{if(!Object.keys(updates).length)return;state.contextSeen[`${route.lane}|${m.channel.id}`]={...seen,...updates};saveJSON(stateFile,state);}};
+}
 async function runMessage(m,route,signal,extra=''){
   const reg=registry.get();route=refreshProjectRoute(route,reg,m.channel);const key=sessionKey(route,m);const cwd=route.project?(route.mode==='consult'?route.project.localPath:await serviceWorkspace(route.project)):hqRoot;if(signal.aborted)return;
   const system=relayInstructions(route,reg);
-  const result=await runClaude({cwd,prompt:route.text+'\n'+extra,system,sessionId:state.sessions[key],consult:route.mode==='consult',signal});
-  if(signal.aborted)return;if(result.session_id){state.sessions[key]=result.session_id;saveJSON(stateFile,state);}
+  const ctx=await siblingContext(route,m,reg);if(signal.aborted)return;
+  const head=route.project?originLine(route.place)+'\n':'';
+  const prompt=(ctx.text?ctx.text+'\n\n':'')+head+route.text+'\n'+extra;
+  const result=await runClaude({cwd,prompt,system,sessionId:state.sessions[key],consult:route.mode==='consult',signal});
+  if(signal.aborted)return;ctx.commit();if(result.session_id){state.sessions[key]=result.session_id;saveJSON(stateFile,state);}
   // 예약 실행은 HJ가 보고 있지 않으므로 HJ 멘션이 알림으로 가게 허용한다.
   const peers=[route.place==='dev'?reg.codexBotId:null,route.scheduled?reg.ownerId:null];await send(m.channel,result.result||'(빈 응답)',peers);
   // hq Issue #20: dev 스레드 답에서 HJ 멘션 문단은 HJ가 보는 프로젝트 채널로도 옮긴다.
