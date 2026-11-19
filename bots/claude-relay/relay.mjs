@@ -8,6 +8,7 @@ import {classify,ExchangeCounter,chunk,refreshProjectRoute} from '../shared/rout
 import {LaneQueue,readJSON,saveJSON,dpapi,readEncryptedToken,importedToken,serviceWorkspace,runClaude,relayInstructions} from './runtime.mjs';
 import {initHQ,newProject,commitRegistry} from './provision.mjs';
 import {dueRuns,describeSchedules,scheduleChannelId} from '../shared/schedule.mjs';
+import {forwardMessage,startNotice} from '../shared/forward.mjs';
 import {startWatchdog,discordReady} from '../shared/watchdog.mjs';
 const here=path.dirname(fileURLToPath(import.meta.url));
 const hqRoot=process.env.HQ_ROOT||path.resolve(here,'../..');
@@ -36,6 +37,11 @@ async function runMessage(m,route,signal,extra=''){
   if(signal.aborted)return;if(result.session_id){state.sessions[key]=result.session_id;saveJSON(stateFile,state);}
   // 예약 실행은 HJ가 보고 있지 않으므로 HJ 멘션이 알림으로 가게 허용한다.
   const peers=[route.place==='dev'?reg.codexBotId:null,route.scheduled?reg.ownerId:null];await send(m.channel,result.result||'(빈 응답)',peers);
+  // hq Issue #20: dev 스레드 답에서 HJ 멘션 문단은 HJ가 보는 프로젝트 채널로도 옮긴다.
+  if(route.place==='dev'&&route.project?.channelId){
+    const fwd=forwardMessage(result.result,{ownerId:reg.ownerId,devThreadId:route.project.devThreadId});
+    if(fwd)try{const main=await bot.channels.fetch(route.project.channelId);if(main)await send(main,fwd,[reg.ownerId]);}catch(e){console.error('HJ 문단 옮기기 실패: '+e.message);}
+  }
 }
 async function handle(m){
   const reg=registry.get();if(reg.errors.length||registry.lastError)return;
@@ -87,7 +93,11 @@ async function scheduleTick(){
     const where=schedule.place==='dev'?'dev 스레드에서 실행. 개발PM 인계는 이 답의 첫 줄 인계 형식으로 한 번에 Issue 하나만 한다':'프로젝트 채널에서 실행. 개발PM 인계는 하지 않는다';
     const text=`[예약 점검 ${schedule.at} KST, ${where}] ${schedule.prompt}\nHJ 결정이 필요한 항목이 있으면 본문에 <@${reg.ownerId}>를 멘션하고 선택지와 추천안을 쓴다. 없으면 멘션하지 않는다.`;
     const route={kind:'chat',lane:project.slug,role:'service-pm',project,place:schedule.place,mode:'owner',scheduled:true,text};
-    queue.enqueue(project.slug,m.id,signal=>runMessage(m,route,signal).catch(e=>send(channel,'예약 점검 실패: '+e.message)));
+    queue.enqueue(project.slug,m.id,async signal=>{
+      // hq Issue #20: 점검을 시작할 때 HJ가 보는 프로젝트 채널에 한 줄 알린다.
+      if(project.channelId&&!signal.aborted)try{const main=await bot.channels.fetch(project.channelId);if(main)await send(main,startNotice(schedule.at));}catch(e){console.error('예약 점검 시작 알림 실패: '+e.message);}
+      return runMessage(m,route,signal).catch(e=>send(channel,'예약 점검 실패: '+e.message));
+    });
   }
 }
 let scheduleTimer=null;
