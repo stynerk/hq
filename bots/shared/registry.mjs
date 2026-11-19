@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import YAML from 'yaml';
 import {normalizeSchedules} from './schedule.mjs';
+import {normalizeIdle} from './idle.mjs';
 
 export function splitFrontmatter(text) {
   const normalized = text.replace(/\r\n/g, '\n');
@@ -46,9 +47,11 @@ export function loadRegistry(hqRoot) {
     // New IDs live only in config/discord.md. Read legacy project metadata until migrated.
     const channelConfig = Object.hasOwn(discord.project_channels || {}, data.slug) ? discord.project_channels[data.slug] : data.discord;
     // 예약 정의 오류는 레지스트리 전체를 막지 않는다. 잘못된 항목만 빼고 !schedule list에 보인다.
-    const {schedules, errors: scheduleErrors} = normalizeSchedules(data.slug, data.schedules);
+    const {schedules, errors: listErrors} = normalizeSchedules(data.slug, data.schedules);
+    const {idle, errors: idleErrors} = normalizeIdle(data.slug, data.idle_check);
+    const scheduleErrors = [...listErrors, ...idleErrors];
     const p = {
-      schedules, scheduleErrors,
+      schedules, scheduleErrors, idle,
       slug: data.slug, title: data.title || data.slug, status: data.status || 'paused',
       repo: data.repo || null, localPath: data.local_path || null,
       channelId: str(channelConfig?.channel_id), devThreadId: str(channelConfig?.dev_thread_id),
