@@ -26,6 +26,13 @@ export class LaneQueue {
   stop(lane){const q=this.lanes.get(lane);if(!q)return false;q.items=[];q.generation++;q.active?.abort();return !!q.active;}
   busy(lane){const q=this.lanes.get(lane);return !!q?.active || !!q?.items.length;}
 }
+// 실패 이유를 버리지 않는다(2026-11-21: 'PC 로그인을 확인하세요'만 남아 원인을 알 수 없었다).
+// claude -p --output-format json은 실패해도 stdout에 {is_error, result}를 내는 경우가 많고, 아니면 stderr 끝부분을 쓴다.
+export function cliFailureReason(output,stderr){
+  try{const r=JSON.parse(String(output||'').trim());const msg=r?.result||r?.error?.message||r?.error;if(msg)return String(msg).replace(/\s+/g,' ').slice(0,300);}catch{}
+  const tail=String(stderr||'').trim().split(/\r?\n/).filter(Boolean).slice(-3).join(' / ');
+  return tail?tail.slice(0,300):'이유 출력 없음. PC에서 claude -p "안녕"으로 확인하세요.';
+}
 export function claudeArgs(promptFile,{sessionId,consult=false}={}) {
   // --tools takes tool names only (Bash), --allowedTools takes permission rules (Bash(git *)).
   // In -p mode an unapproved Bash command is denied, so only git/gh run.
@@ -101,7 +108,7 @@ export function runClaude({cwd,prompt,system,sessionId,consult=false,signal,time
     catch(e){finish(e);return;}
     signal?.addEventListener('abort',abort,{once:true});timer=setTimeout(abort,timeoutMs);
     child.stdout.on('data',b=>{output+=b.toString();if(output.length>8*1024*1024)abort();});child.stderr.on('data',b=>{error=(error+b.toString()).slice(-4000);});
-    child.on('error',e=>finish(e));child.on('close',code=>{closed=true;if(aborted){stopped();return;}if(done)return;if(code!==0)return finish(new Error('Claude CLI 실패 (code '+code+'). PC 로그인을 확인하세요.'));try{const result=JSON.parse(output);if(result.is_error)throw new Error('Claude 요청 실패: '+String(result.result||'unknown').slice(0,300));finish(null,result);}catch(e){finish(new Error('Claude JSON 응답 처리 실패: '+e.message));}});
+    child.on('error',e=>finish(e));child.on('close',code=>{closed=true;if(aborted){stopped();return;}if(done)return;if(code!==0)return finish(new Error('Claude CLI 실패 (code '+code+'): '+cliFailureReason(output,error)));try{const result=JSON.parse(output);if(result.is_error)throw new Error('Claude 요청 실패: '+String(result.result||'unknown').slice(0,300));finish(null,result);}catch(e){finish(new Error('Claude JSON 응답 처리 실패: '+e.message));}});
     child.stdin.on('error',()=>{});child.stdin.end(prompt);
   });
 }
