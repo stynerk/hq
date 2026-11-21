@@ -7,6 +7,7 @@ import {EventEmitter} from 'node:events';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {LaneQueue,claudeArgs,runClaude,importedToken,relayInstructions,serviceWorkspace} from './runtime.mjs';
+import {cliFailureReason} from './runtime.mjs';
 import {validateProject} from './provision.mjs';
 const tick=()=>new Promise(r=>setImmediate(r));
 
@@ -114,4 +115,10 @@ test('work sessions enable the Bash tool but preapprove only git and gh, and ign
  assert.ok(allowed.includes('Bash(git *)')&&allowed.includes('Bash(gh *)'));assert.ok(!allowed.includes('Bash'),'bare Bash must not be preapproved');
  assert.ok(args.includes('--strict-mcp-config'));
  assert.ok(claudeArgs('/tmp/p',{consult:true}).includes('--strict-mcp-config'));
+});
+
+test('cliFailureReason keeps the reason from JSON result or stderr', () => {
+  assert.equal(cliFailureReason('{"is_error":true,"result":"Credit balance is too low"}',''), 'Credit balance is too low');
+  assert.equal(cliFailureReason('', 'line1\nInvalid API key · Please run /login\n'), 'line1 / Invalid API key · Please run /login');
+  assert.match(cliFailureReason('',''), /claude -p/);
 });
