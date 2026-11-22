@@ -7,7 +7,7 @@
 | slug | 이름 | 상태 | 저장소 |
 |---|---|---|---|
 | [onemorestep](onemorestep.md) | onemorestep (미리내) | active | stynerk/onemorestep |
-| [our-adventure](our-adventure.md) | Our Adventure | paused | stynerk/OurAdventure |
+| [our-adventure](our-adventure.md) | Our Adventure | active | stynerk/OurAdventure |
 
 `status`: `active`(에이전트가 스스로 일한다), `paused`(HJ가 부를 때만 답한다), `archived`(답하지 않는다).
 
