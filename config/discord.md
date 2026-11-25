@@ -30,7 +30,7 @@ project_channels:
   onemorestep:
     channel_id: "1570085138774233170"
     dev_thread_id: "1571771769461809153"
-    github_notifications: dev_thread  # 2026-11-19 웹후크를 새로 만들고 ?thread_id로 dev 스레드에 올림. 웹후크 주소는 비밀이라 기록하지 않는다
+    github_notifications: dev_thread
   our-adventure:
     channel_id: "1572005322837725184"
     dev_thread_id: "1572005326054629397"
@@ -47,6 +47,11 @@ project_channels:
 - `verified: true`는 저장소 문서나 봇 설정에서 이름과 ID가 함께 확인된 값이다.
 - HJ Company의 ID는 Codex 브릿지 설정의 신뢰 봇 목록에 있는 값이다. 이름과 함께 확인하지는 못했다. 3단계에서 릴레이를 띄울 때 봇 자신의 ID로 확인하고 `verified: true`로 바꾼다.
 - HQ 채널과 카테고리 ID는 3단계에서 봇이 만들면서 채운다.
+
+## GitHub 알림
+
+- onemorestep `github_notifications: dev_thread`: 2026-11-19 웹후크를 새로 만들고 `?thread_id`로 dev 스레드에 올린다. 웹후크 주소는 비밀이라 기록하지 않는다.
+- 프론트매터의 주석은 봇이 레지스트리를 다시 쓸 때 지워지므로, 설명은 이 본문에 적는다.
 
 ## 지금 서버에 있는 것으로 확인된 채널 (2026-11-16)
 
