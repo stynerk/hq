@@ -77,6 +77,22 @@ test('service worktree follows merged main and preserves dirty or squash-diverge
  }finally{fs.rmSync(root,{recursive:true,force:true});}
 });
 
+test('service worktree validation accepts a project path reached through a symlink',async t=>{
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'hq-service-link-'));
+ const exec=promisify(execFile);
+ const git=async(cwd,...args)=>(await exec('git',['-c','user.name=Test','-c','user.email=test@example.invalid','-C',cwd,...args])).stdout.trim();
+ try{
+  const origin=path.join(root,'origin.git'),seed=path.join(root,'seed'),repo=path.join(root,'project'),link=path.join(root,'project-link');
+  fs.mkdirSync(seed);await git(root,'init','--bare',origin);await git(seed,'init','-b','main');
+  fs.writeFileSync(path.join(seed,'a.txt'),'a');await git(seed,'add','.');await git(seed,'commit','-m','init');await git(seed,'remote','add','origin',origin);await git(seed,'push','origin','main');
+  await git(root,'clone','--branch','main',origin,repo);
+  try{fs.symlinkSync(repo,link,'junction');}catch{t.skip('symlink not permitted');return;}
+  const service=await serviceWorkspace({slug:'demo',localPath:link});
+  assert.equal(fs.readFileSync(path.join(service,'a.txt'),'utf8'),'a');
+  assert.equal(await serviceWorkspace({slug:'demo',localPath:link}),service);
+ }finally{fs.rmSync(root,{recursive:true,force:true});}
+});
+
 test('service worktree reports fetch failure without exposing Git credential errors',async()=>{
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'hq-service-fetch-'));
  try {await assert.rejects(serviceWorkspace({slug:'demo',localPath:root},{execFn:async()=>{throw new Error('sensitive Git stderr');}}),e=>e.message.includes('네트워크·Git 인증')&&!e.message.includes('sensitive'));}
