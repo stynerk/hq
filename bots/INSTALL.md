@@ -182,3 +182,16 @@ node bots/tools/drive.mjs read
 node --test "bots/codex-bridge/*.test.mjs" bots/codex-bridge/test.mjs
 npm --prefix bots test
 ```
+
+## 공통 Antigravity 실행 도구
+
+Mac mini의 봇 운영 사용자에게 설치·인증된 `agy`를 사용한다. PM2 사용자의 `PATH`에서 찾지 못하면 `AGY_BIN`에 절대 경로를 지정한다. 기존 `AGY_REVIEW_BIN`도 지원한다. 호출은 파이프의 stdin/stdout과 제한 시간으로 처리한다.
+
+```sh
+node bots/tools/agy-run.mjs --mode review --instructions agents/subagents/reviewer.md --input ./draft.md
+node bots/tools/agy-run.mjs --mode research --instructions ./public-research.md --question-stdin < ./public-question.txt
+```
+
+- 검토의 본문 출력은 텍스트다. 기존 `gemini-review.mjs`는 역할별 머리표와 `GEMINI_REVIEW_ENGINE` 선택, Gemini CLI 폴백을 계속 제공한다.
+- 조사 결과는 JSON이다. 각 근거에 제목, 주장, 공개 URL과 날짜를 기록한다. `dateBasis=source`는 원문에 표시된 기준일이고 `dateBasis=observed`는 UTC 기준 조사 확인일이다. 확인에 실패한 항목은 `unconfirmed`에 남긴다.
+- 공개 시장 조사만 넣는다. `--question-stdin`으로 넘긴 질문은 실행 명령의 인자에 포함되지 않는다.

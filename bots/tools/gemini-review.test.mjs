@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {EventEmitter} from 'node:events';
 import {PassThrough} from 'node:stream';
+import {buildAgyPrompt, parseAgyArgs, parseResearchOutput, runAgy} from './agy-run.mjs';
 import {parseArgs, buildPrompt, stripFrontmatter, runGemini, runAntigravity, runReview, reviewModel, geminiCommand, stripHeader, normalizeReviewOutput} from './gemini-review.mjs';
 
 test('parseArgs requires criteria and at least one file', () => {
@@ -198,4 +199,86 @@ test('normalizeReviewOutput preserves code blocks within a response', () => {
   const separate = '```js\nconst score = 1;\n```\n\n```text\n판정: 통과\n```';
   const unclosed = '```text\n판정: 통과\n~~~';
   for (const response of [partial, separate, unclosed]) assert.equal(normalizeReviewOutput(response), response);
+});
+
+test('agy-run accepts a role, repeated inputs, and exactly one kind of question', () => {
+  assert.deepEqual(parseAgyArgs([
+    '--mode', 'research', '--instructions', 'role.md', '--input', 'one.md', '--input', 'two.md', '--question-stdin',
+  ]), {mode: 'research', instructions: 'role.md', inputs: ['one.md', 'two.md'], questionStdin: true});
+  assert.equal(parseAgyArgs(['--instructions', 'role.md', '--question', '질문']).mode, 'review');
+  for (const options of [
+    ['--mode', 'other', '--instructions', 'role.md', '--question', '자료'],
+    ['--instructions', 'role.md', '--question', '자료', '--question-stdin'],
+    ['--instructions', 'role.md', '--question-stdin', '--question-stdin'],
+    ['--instructions', 'role.md'],
+    ['--input', '자료'],
+    ['--instructions', '--question', '자료'],
+  ]) assert.throws(() => parseAgyArgs(options), /사용:/);
+
+  const prompt = buildAgyPrompt({
+    instructions: '---\nname: researcher\n---\n시장 조사',
+    inputs: [{name: '자료.md', text: '공개 자료'}],
+    question: '가격',
+  });
+  assert.doesNotMatch(prompt, /name: researcher/);
+  assert.match(prompt, /시장 조사[\s\S]*가격[\s\S]*자료\.md[\s\S]*공개 자료/);
+  assert.throws(() => buildAgyPrompt({instructions: '지침', question: 'x'.repeat(400_000)}), /너무 큽니다/);
+});
+
+const source = {
+  title: '공개 가격표', claim: '무료 요금제를 제공한다.',
+  url: 'https://example.org/prices', date: '2024-02-29', dateBasis: 'source',
+};
+
+test('research results require dates and public source URLs and stamp actual observation date', () => {
+  const observedOn = '2026-11-27';
+  const data = (results, unconfirmed = []) => JSON.stringify({results, unconfirmed});
+  const response = parseResearchOutput(data([
+    source, {...source, date: '1999-01-01', dateBasis: 'observed'},
+  ], ['가격 계산 기준 미확인']), observedOn);
+  assert.deepEqual(response, {
+    results: [source, {...source, date: observedOn, dateBasis: 'observed'}], unconfirmed: ['가격 계산 기준 미확인'],
+  });
+  assert.deepEqual(parseResearchOutput(data([], ['확인된 자료 없음']), observedOn), {results: [], unconfirmed: ['확인된 자료 없음']});
+  assert.throws(() => parseResearchOutput(data([]), observedOn), /미확인 항목이 없습니다/);
+  for (const invalid of [
+    {date: undefined}, {date: '2026-02-30'}, {url: 'file:///tmp/prices'}, {url: 'https://secret@example.org'},
+    {url: undefined}, {url: 'http://localhost:3000'}, {url: 'http://127.0.0.1'},
+    {url: 'http://[::1]'}, {url: 'https://foo.local/'}, {url: 'https://internal/'}, {claim: '  '}, {title: undefined}, {dateBasis: undefined},
+  ]) assert.throws(() => parseResearchOutput(data([{...source, ...invalid}]), observedOn), /기준일/);
+  assert.throws(() => parseResearchOutput('unstructured text', observedOn), /JSON 형식/);
+});
+
+const toolEvent = (tool, state = 'DONE', error) => JSON.stringify({
+  event: 'step_update',
+  step_update: {step_type: 'tool', tool_name: tool, state, tool_info: {name: tool, error}},
+}) + '\n';
+
+test('research profile keeps stdin and process isolation while allowing public web evidence only', async () => {
+  const init = initEvent({agent: 'hq-market-research-agent'});
+  const stdout = resultEvent('SUCCESS', JSON.stringify({results: [source], unconfirmed: []}));
+  let asked;
+  const data = await runAgy('공개 서비스 가격', {mode: 'research', spawnFn: fakeSpawn({
+    init,
+    stdout: toolEvent('search_web') + toolEvent('read_url_content') + stdout,
+    onSpawn: (_cmd, args, {cwd}) => {
+      assert.ok(!args.includes('공개 서비스 가격'));
+      const definition = fs.readFileSync(path.join(cwd, '.agents', 'agents', 'hq-market-research-agent.md'), 'utf8');
+      assert.match(definition, /^tools: \[search_web, read_url_content, send_message\]$/m);
+      assert.match(definition, /^commandExecutionPolicy: off$/m);
+      assert.match(definition, /^inheritMcp: false$/m);
+    },
+    onInput: input => { asked = JSON.parse(input).message.content; },
+  })});
+  assert.match(asked, /공개 서비스 가격/);
+  assert.deepEqual(data, {results: [source], unconfirmed: []});
+
+  for (const [events, reason] of [
+    [toolEvent('run_command'), /허용하지 않은 도구/],
+    [toolEvent('search_web', 'ACTIVE'), /완료된 웹 검색/],
+    [toolEvent('search_web', 'DONE', '검색 오류'), /완료된 웹 검색/],
+    ['', /완료된 웹 검색/],
+  ]) await assert.rejects(runAgy('P', {mode: 'research', spawnFn: fakeSpawn({init, stdout: events + stdout})}), reason);
+  await assert.rejects(runAgy('P', {mode: 'auto'}), /실행 모드/);
+  await assert.rejects(runAgy('x'.repeat(400_001), {mode: 'research'}), /너무 큽니다/);
 });

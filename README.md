@@ -39,7 +39,7 @@ HJ (오너)
       │  ├ Loki    challenger   반대 심문 (Gemini)
       │  ├ Fury    reviewer     심사위원 패널 3인 (Gemini)
       │  └ Friday  editor       30초 문장·용어·수치 표기
-      ├ CBO/CMO Thanos ───── #thanos, 프로젝트 채널 @Thanos  사업·마케팅 (HJ에게 보고)
+      ├ CBO/CMO Thanos ───── #hq·프로젝트에서 @Thanos  사업·마케팅 (HJ에게 보고)
       └ 개발PM dev-pm ─────── #<프로젝트> › dev  개발·QA·릴리즈
          ├ implementer          구현
          ├ qa                   테스트·QA·시연 대본

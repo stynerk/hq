@@ -9,7 +9,7 @@
 | 대표 | [hq-lead](hq-lead.md) 총괄 (Tony) | Claude | HJ (#hq) | HJ |
 | 대표 | [service-pm](service-pm.md) 서비스PM (Tony) | Claude | HJ (#프로젝트) | HJ |
 | 대표 | [dev-pm](dev-pm.md) 개발PM (Cap) | Codex | 서비스PM, HJ가 직접 물을 때 | 서비스PM |
-| 대표 | [cbo](cbo.md) CBO/CMO (Thanos) | Claude | HJ (#thanos, 프로젝트 채널에서 @Thanos) | HJ |
+| 대표 | [cbo](cbo.md) CBO/CMO (Thanos) | Claude | HJ (#hq·프로젝트 채널에서 @Thanos) | HJ |
 | 서브 | [researcher](subagents/researcher.md) Jarvis | Claude | 없음 | 서비스PM, CBO |
 | 서브 | [challenger](subagents/challenger.md) Loki | Gemini·Antigravity (Claude 래퍼로 실행) | 없음 | 서비스PM, CBO |
 | 서브 | [reviewer](subagents/reviewer.md) Fury | Gemini·Antigravity (Claude 래퍼로 실행) | 없음 | 서비스PM |
