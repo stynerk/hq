@@ -56,6 +56,8 @@
 | 서비스PM | 문서 전용 작업 트리 `<프로젝트>/.worktrees/service` |
 | 개발PM의 서브에이전트 | Issue마다 작업 트리 `<프로젝트>/.worktrees/issue-번호` |
 
+작업 트리를 새로 만들면 바로 `npm --prefix bots ci`까지 실행한다(`bots/package-lock.json`이 있는 저장소, 지금은 hq). `node_modules`는 Git 밖이라 새 작업 트리에는 없고, 없으면 테스트가 import에서 실패한다(LEARNINGS 2026-11-26).
+
 커밋하기 전에 현재 브랜치를 확인한다. 병합된 작업 트리는 개발PM이 정리한다(`git worktree remove`).
 
 ## 6. 인수인계

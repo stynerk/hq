@@ -46,3 +46,4 @@ HJ가 확정한 운영 결정을 날짜순으로 쌓는다. 프로젝트 고유 
 | 2026-11-26 | #hq에서 HJ가 Cap을 멘션하거나 Cap 메시지에 답글을 달면 Cap도 hq 읽기 전용으로 답한다. 기본 응답은 총괄, Cap만 부르면 총괄은 빠진다. 봇끼리는 #hq에서 주고받지 않는다 | HJ 지시, hq PR #28. playbooks/discord.md 2절 |
 | 2026-11-26 | Codex 브릿지 계정 홈(모든 business 계정)의 config.toml에 `[sandbox_workspace_write] network_access = true`를 켠다. Cap의 쓰기 레인(dev 스레드)에서 gh·GitHub 조회가 되게 한다. read-only 레인은 그대로 차단. #27 PR은 Tony·Cap 합의로 병합(이 Issue만 bots/ 예외), Mac mini 접속은 HJ | HJ 결정. 계정을 새로 추가하면 같은 설정을 넣는다 |
 | 2026-11-26 | Codex 브릿지: 승인 검토는 auto_review 유지. 쓰기 레인의 권한 추가 요청(item/permissions/requestApproval)은 요청한 만큼 그 턴에만 자동 허용, 읽기 전용은 차단 | HJ 결정, hq PR #30 |
+| 2026-11-26 | 작업 트리를 새로 만들면 `npm --prefix bots ci`까지 실행한다(`bots/package-lock.json`이 있는 저장소) | HJ 지시. playbooks/workflow.md 5절, hq PR #34 테스트 로드 실패 |
