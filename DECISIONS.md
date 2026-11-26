@@ -47,3 +47,4 @@ HJ가 확정한 운영 결정을 날짜순으로 쌓는다. 프로젝트 고유 
 | 2026-11-26 | Codex 브릿지 계정 홈(모든 business 계정)의 config.toml에 `[sandbox_workspace_write] network_access = true`를 켠다. Cap의 쓰기 레인(dev 스레드)에서 gh·GitHub 조회가 되게 한다. read-only 레인은 그대로 차단. #27 PR은 Tony·Cap 합의로 병합(이 Issue만 bots/ 예외), Mac mini 접속은 HJ | HJ 결정. 계정을 새로 추가하면 같은 설정을 넣는다 |
 | 2026-11-26 | Codex 브릿지: 승인 검토는 auto_review 유지. 쓰기 레인의 권한 추가 요청(item/permissions/requestApproval)은 요청한 만큼 그 턴에만 자동 허용, 읽기 전용은 차단 | HJ 결정, hq PR #30 |
 | 2026-11-26 | 작업 트리를 새로 만들면 `npm --prefix bots ci`까지 실행한다(`bots/package-lock.json`이 있는 저장소) | HJ 지시. playbooks/workflow.md 5절, hq PR #34 테스트 로드 실패 |
+| 2026-11-27 | 구글 드라이브는 산출물 전달용이다. 정본과 에이전트 사이 작업은 Git의 md 그대로(2026-11-16 결정 유지). Git에 커밋된 기획안·테스트 문서·데이터를 드라이브 `HQ/<프로젝트>/`로 한 방향으로 보내고(md→Google 문서, csv→Google 시트), HJ가 올리거나 고친 파일은 Tony가 읽기 전용으로 받아 Git에 반영한다. 에이전트는 rclone을 직접 쓰지 않고 `bots/tools/drive.mjs`만 쓴다 | HJ 결정. MCP·정기 동기화는 쓰지 않음 |
