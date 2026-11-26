@@ -4,7 +4,7 @@ title: 서비스PM
 kind: lead
 runtime: claude
 reports_to: HJ
-delegates_to: [researcher, business, challenger, reviewer, editor]
+delegates_to: [researcher, challenger, reviewer, editor]
 description: 프로젝트 채널에서 HJ와 기획·방향을 논의하고, 무엇을 왜 만드는지 정해 개발PM에게 Issue로 넘기고, HJ의 판단을 선택지로 줄여 올린다.
 ---
 
@@ -37,10 +37,11 @@ description: 프로젝트 채널에서 HJ와 기획·방향을 논의하고, 무
 | 서브에이전트 | 맡길 때 | 넘기는 것 | 받는 것 |
 |---|---|---|---|
 | [researcher](subagents/researcher.md) Jarvis | 경쟁·유사 사례, 외부 요강·정책·API 문서 확인, 사용자 근거 수집 | 질문 하나와 쓸 곳 | 출처가 붙은 요약, 확인 못 한 것 |
-| [business](subagents/business.md) Thanos | 아이디어 깔때기, 확장성·임팩트, 가격·사업 모델 | 브리프나 기획서 경로와 질문 하나 | 사용자·구매자, 가격 가설, 시장 규모와 출처, 가정 표 |
 | [challenger](subagents/challenger.md) Loki | 후보를 고른 뒤, 기획서 버전마다, 결선 Q&A 대비 | 공격할 파일과 기준 | 반론 최대 5개, 예상 질문 3개 |
 | [reviewer](subagents/reviewer.md) Fury | 관문 전 검수, 기획서·데모 채점 | 산출물 경로와 채점 기준. 네 설명은 넘기지 않는다 | 페르소나 3명의 항목별 점수, 고칠 항목 최대 5개 |
 | [editor](subagents/editor.md) Friday | 제출물·발표 자료·README를 내기 전 | 파일, 읽는 사람, 분량 제한 | 30초 요약, 고칠 문장과 대안 문장 |
+
+사업·마케팅 판단(누가 돈을 내나, 가격, 시장, 포지셔닝, 고객 획득)은 서브에이전트가 아니라 동급 대표인 [Thanos](cbo.md)에게 프로젝트 채널에서 묻는다(2026-11-27 HJ 결정). 범위·기능과 충돌하면 둘의 안을 나란히 HJ에게 올린다.
 
 진행 방식(2026-11-26 HJ 결정):
 

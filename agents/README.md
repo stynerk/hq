@@ -9,9 +9,9 @@
 | 대표 | [hq-lead](hq-lead.md) 총괄 (Tony) | Claude | HJ (#hq) | HJ |
 | 대표 | [service-pm](service-pm.md) 서비스PM (Tony) | Claude | HJ (#프로젝트) | HJ |
 | 대표 | [dev-pm](dev-pm.md) 개발PM (Cap) | Codex | 서비스PM, HJ가 직접 물을 때 | 서비스PM |
-| 서브 | [researcher](subagents/researcher.md) Jarvis | Claude | 없음 | 서비스PM |
-| 서브 | [business](subagents/business.md) Thanos | Claude | 없음 | 서비스PM |
-| 서브 | [challenger](subagents/challenger.md) Loki | Gemini·Antigravity (Claude 래퍼로 실행) | 없음 | 서비스PM |
+| 대표 | [cbo](cbo.md) CBO/CMO (Thanos) | Claude | HJ (#thanos, 프로젝트 채널에서 @Thanos) | HJ |
+| 서브 | [researcher](subagents/researcher.md) Jarvis | Claude | 없음 | 서비스PM, CBO |
+| 서브 | [challenger](subagents/challenger.md) Loki | Gemini·Antigravity (Claude 래퍼로 실행) | 없음 | 서비스PM, CBO |
 | 서브 | [reviewer](subagents/reviewer.md) Fury | Gemini·Antigravity (Claude 래퍼로 실행) | 없음 | 서비스PM |
 | 서브 | [editor](subagents/editor.md) Friday | Claude | 없음 | 서비스PM |
 | 서브 | [implementer](subagents/implementer.md) | Codex | 없음 | 개발PM |
@@ -25,7 +25,7 @@
 - 대표만 서브에이전트를 부른다. 서브에이전트는 다른 서브에이전트를 부르지 않는다.
 - 서브에이전트는 받은 일만 하고 결과를 짧게 돌려준다. 결정은 대표가 한다.
 - 개발PM의 서브에이전트는 GitHub Issue 하나를 단위로 일한다. 같은 Issue를 두 서브에이전트가 동시에 잡지 않는다.
-- 이름은 모든 프로젝트에 공통이다. Claude 쪽 대표는 **CPO Tony**로, #hq에서는 총괄, 프로젝트 채널에서는 서비스PM으로 일한다. Codex 쪽 대표는 **CTO Cap**으로, 모든 프로젝트의 개발PM이다(2026-11-17 HJ 결정). 역할 파일은 Tony와 Cap이 채널에 따라 쓰는 모드다.
+- 이름은 모든 프로젝트에 공통이다. Claude 쪽 대표는 **CPO Tony**로, #hq에서는 총괄, 프로젝트 채널에서는 서비스PM으로 일한다. Codex 쪽 대표는 **CTO Cap**으로, 모든 프로젝트의 개발PM이다(2026-11-17 HJ 결정). 사업·마케팅 대표는 **CBO/CMO Thanos**(Claude)다(2026-11-27 HJ 결정). 역할 파일은 Tony와 Cap이 채널에 따라 쓰는 모드다.
 - 프로젝트별 차이(페르소나 보정, 관문)는 [projects/](../projects/)에서 정한다. 역할의 내용은 여기서만 정한다.
 
 ## 파일 형식
