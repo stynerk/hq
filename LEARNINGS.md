@@ -171,3 +171,10 @@
 - 무슨 일: `git worktree add`로 만든 작업 트리에서 `node --test bots/claude-relay/runtime.test.mjs`를 돌리자 테스트 하나 없이 파일 단위(`1:1`)로 실패했다.
 - 원인: `node_modules`는 Git 밖이라 본 폴더 `bots/`에만 있었다. 새 작업 트리에서는 `yaml` 패키지를 찾지 못해 import가 실패했다(추정. 오류 원문은 확인하지 못했다).
 - 다음부터: 작업 트리를 만들면 바로 `npm --prefix bots ci`를 실행한다([playbooks/workflow.md](playbooks/workflow.md) 5절).
+
+## 2026-11-27 쌓인 PR의 base 브랜치를 지우자 위 PR이 닫혔다
+
+- 출처: hq PR #47(공통 Antigravity 도구) → PR #45(Thanos, base가 #47 브랜치)
+- 무슨 일: #47을 `--delete-branch`로 병합하자 #45가 base 삭제로 닫혔다. 자동으로 main으로 바뀌지 않았다. base 브랜치를 복원해 다시 열고 base를 main으로 바꿔 살렸다.
+- 같은 때: #45 검토에서 base와의 비교 범위에 main의 문서 커밋이 섞여 보여, Cap이 규칙 문서를 고친 것으로 잘못 보고 수정을 요청했다가 철회했다.
+- 다음부터: 다른 PR이 base로 쓰는 브랜치는 병합할 때 지우지 않는다. 위 PR의 base를 main으로 먼저 바꾼 뒤 지운다. 커밋 범위로 검토할 때는 `gh pr diff`(PR 기준)로 다시 확인한다.
