@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawn, execFile} from 'node:child_process';
 import {promisify} from 'node:util';
+import {fileURLToPath} from 'node:url';
 import {botIdentityInstructions} from '../shared/bot-context.mjs';
 const exec = promisify(execFile);
 // Escalate before PM2's default 1.6-second shutdown deadline.
@@ -32,12 +33,15 @@ export function cliFailureReason(output,stderr){
   const tail=String(stderr||'').trim().split(/\r?\n/).filter(Boolean).slice(-3).join(' / ');
   return tail?tail.slice(0,300):'이유 출력 없음. PC에서 claude -p "안녕"으로 확인하세요.';
 }
+export const DRIVE_TOOL=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..','tools','drive.mjs');
+export const driveRules=(tool=DRIVE_TOOL)=>[`Bash(node ${tool} send *)`,`Bash(node ${tool} read)`,`Bash(node ${tool} read *)`];
 export function claudeArgs(promptFile,{sessionId,consult=false}={}) {
   // --tools takes tool names only (Bash), --allowedTools takes permission rules (Bash(git *)).
   // In -p mode an unapproved Bash command is denied, so only git/gh run.
   // pm2: exactly `pm2 ls` (status only). jlist prints env vars (secrets); logs/restart are HJ's (2026-11-26 HJ).
+  // Drive: only drive.mjs send/read by absolute path, never rclone itself (it could upload any local file) (2026-11-27 HJ).
   const tools=consult?['Read','Glob','Grep']:['Read','Edit','Write','Glob','Grep','WebSearch','WebFetch','Task','TodoWrite','Bash'];
-  const allowed=consult?tools:[...tools.filter(t=>t!=='Bash'),'Bash(git *)','Bash(gh *)','Bash(node *gemini-review.mjs *)','Bash(pm2 ls)'];
+  const allowed=consult?tools:[...tools.filter(t=>t!=='Bash'),'Bash(git *)','Bash(gh *)','Bash(node *gemini-review.mjs *)','Bash(pm2 ls)',...driveRules()];
   // --strict-mcp-config: user/plugin MCP servers (e.g. the old Discord plugin) must not load in relay sessions.
   const args=['-p','--output-format','json','--append-system-prompt-file',promptFile,'--permission-mode',consult?'plan':'acceptEdits','--strict-mcp-config','--tools',tools.join(','),'--allowedTools',...allowed];
   if(sessionId)args.push('--resume',sessionId);return args;

@@ -133,6 +133,31 @@ pm2 restart tony cap
 
 복귀할 때는 `pm2 stop tony cap`로 중지한 뒤 이전 호스트를 재시작한다. 설정과 세션은 보존한다.
 
+## 7. 구글 드라이브 연결 (산출물 전달)
+
+드라이브는 산출물을 보내고 HJ가 올리거나 고친 파일을 확인하는 데만 쓴다. 정본은 Git의 md다(DECISIONS 2026-11-27). Tony는 `bots/tools/drive.mjs`의 `send`·`read`만 실행하고 rclone 자체는 실행하지 못한다.
+
+1. `brew install rclone`
+2. 구글 클라우드에서 전용 OAuth 클라이언트를 만든다. rclone 공용 client_id는 2026년 중 종료된다.
+   - 새 프로젝트 → Google Drive API 사용 설정
+   - OAuth 동의 화면: 외부, 범위 `drive.file`·`drive.readonly`, **프로덕션으로 게시**(테스트 상태면 7일마다 로그인이 끊긴다)
+   - 사용자 인증 정보 → OAuth 클라이언트 ID → 데스크톱 앱
+3. `rclone config`로 연결 두 개를 만든다. client_id와 client_secret은 2번 값을 둘 다에 넣는다.
+
+| 이름 | scope | root_folder_id | 용도 |
+|---|---|---|---|
+| `gdrive` | `drive.file` | 비움 | 보내기. rclone이 만든 `HQ` 폴더 안만 다룬다 |
+| `gdrive-ro` | `drive.readonly` | `HQ` 폴더 ID(드라이브 주소 `folders/` 뒤) | 읽기. HJ가 웹에서 올린 파일도 보인다 |
+
+4. 확인
+
+```sh
+rclone mkdir gdrive:HQ
+node bots/tools/drive.mjs read
+```
+
+연결 이름이나 최상위 폴더가 다르면 `.env`에 `HQ_DRIVE_REMOTE`, `HQ_DRIVE_READ_REMOTE`, `HQ_DRIVE_ROOT`를 넣는다. `~/.config/rclone/rclone.conf`는 Git에 올리지 않는다.
+
 ## 로컬 QA
 
 저장소 루트에서 `node --test bots/codex-bridge/`가 `MODULE_NOT_FOUND`를 내는 Node.js 버전에서는 테스트 파일을 지정한다. 이 명령은 브리지의 `*.test.mjs`와 기존 `test.mjs`를 실행한다.
