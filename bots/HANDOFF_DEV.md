@@ -1,6 +1,7 @@
-# Issue #27 개발 인계
+# Issue #37 개발 인계
 
-- Mac mini의 `tony`는 Claude 릴레이, `cap`은 Codex 브리지다. PM2 구성은 앱별 작업 폴더와 권한 0600인 `bots/.env`의 경로를 전달한다. 공백이 있는 계정 디렉터리는 프로세스 인자와 환경 값으로 그대로 넘긴다.
-- Windows의 작업 스케줄러 및 DPAPI는 그대로 사용한다. Mac mini는 새 `routing.json`을 만들며 자동 탐색과 한도 전환에 같은 계정 루트를 쓴다.
-- Windows에서 실제 DPAPI로 모의 자격 증명을 복호화했고, 두 봇 진입점의 모의 Discord 응답과 Codex 모의 한도 전환 후 `routing.json` 저장을 확인했다. 기존 Windows 운영 프로세스 재시작과 Mac mini의 PM2·실제 Discord 확인은 남아 있다. `INSTALL.md`에 Mac mini 확인 절차를 적었다.
-- Codex 0.169.0의 생성 스키마에서 PR #30의 `permissions`, `scope` 응답 필드를 대조했다. Node 24에서 `node --test bots/codex-bridge/`는 `MODULE_NOT_FOUND`를 반환했다. `INSTALL.md`의 테스트 파일 지정 명령으로 브리지 37개 테스트를 통과했다.
+- `drive.mjs read`는 단일 파일의 사전 메타데이터와 다운로드 결과에 각각 20 MiB 제한을 적용한다. 크기가 `-1`인 Google 문서도 내보낼 수 있으며 실패한 다운로드의 임시 폴더는 정리한다.
+- 목록 조회는 깊이 3을 유지하고 그 경계의 하위 폴더를 출력한다. 사용자는 표시된 경로를 `read`에 다시 넘겨 더 깊은 파일을 볼 수 있다.
+- 실제 읽기 전용 Drive에서 수정 전 두 버그를 재현했다. 수정 후 지정 Google 문서가 로컬 임시 폴더에 `README.md`로 내려왔고, 루트 목록의 `hq/bots/oauth-site/`와 `read hq/bots`의 `hq/bots/oauth-site/README.md`를 확인했다.
+- `npm --prefix bots test`는 142개 통과, Windows 전용 DPAPI 1개 건너뜀, 실패 0개였다.
+- Tony의 PR 검토와 QA가 다음 단계다. 병합과 운영 호스트의 `pm2 restart tony`는 HJ가 진행한다. Drive 시험 파일 삭제 여부는 HJ가 정한다.
