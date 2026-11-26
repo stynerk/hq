@@ -107,6 +107,38 @@ test('abort keeps lane occupied until the CLI actually closes',async()=>{
  controller.abort();await tick();assert.equal(settled,false);cli.emit('close',null);await promise;assert.equal(settled,true);
 });
 
+test('POSIX cancellation escalates an unresponsive Claude process group', {timeout: 5000}, async t => {
+ const platform = Object.getOwnPropertyDescriptor(process, 'platform');
+ Object.defineProperty(process, 'platform', {...platform, value: 'darwin'});
+ t.after(() => Object.defineProperty(process, 'platform', platform));
+
+ const controller = new AbortController();
+ const cli = new EventEmitter();
+ cli.pid = 12345;
+ cli.stdout = new EventEmitter();
+ cli.stderr = new EventEmitter();
+ cli.stdin = new EventEmitter();
+ cli.stdin.end = () => {};
+ const signals = [];
+ t.mock.method(process, 'kill', (pid, signal) => {
+  signals.push([pid, signal]);
+  if (signal === 'SIGKILL') setImmediate(() => cli.emit('close', null));
+ });
+
+ const pending = runClaude({
+  cwd: os.tmpdir(), prompt: 'p', system: 's', signal: controller.signal,
+  resolveCommand: () => ({command: 'claude', prefix: []}),
+  spawnFn: (_command, _args, options) => {
+   assert.equal(options.detached, true);
+   return cli;
+  },
+ });
+ const stopped = assert.rejects(pending, /작업이 중지되었습니다/);
+ controller.abort();
+ await stopped;
+ assert.deepEqual(signals, [[-cli.pid, 'SIGTERM'], [-cli.pid, 'SIGKILL']]);
+});
+
 test('work sessions enable the Bash tool but preapprove only git and gh, and ignore user MCP servers',()=>{
  const args=claudeArgs('/tmp/p');
  const tools=args[args.indexOf('--tools')+1].split(',');

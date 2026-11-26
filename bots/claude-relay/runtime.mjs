@@ -5,6 +5,8 @@ import {spawn, execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {botIdentityInstructions} from '../shared/bot-context.mjs';
 const exec = promisify(execFile);
+// Escalate before PM2's default 1.6-second shutdown deadline.
+export const CLAUDE_STOP_GRACE_MS = 750;
 export function saveJSON(file, value) { fs.mkdirSync(path.dirname(file), {recursive:true}); fs.writeFileSync(file+'.tmp',JSON.stringify(value,null,2)); fs.renameSync(file+'.tmp',file); }
 export function readJSON(file, fallback) { try {return JSON.parse(fs.readFileSync(file,'utf8'));} catch(e) {if(e.code==='ENOENT') return fallback; throw e;} }
 export async function readEncryptedToken() {
@@ -106,7 +108,7 @@ export function runClaude({cwd,prompt,system,sessionId,consult=false,signal,time
       }else{
         // A detached POSIX CLI leads its own group, including shell/tool descendants.
         if (signalGroup('SIGTERM')) {
-          killTimer=setTimeout(()=>{signalGroup('SIGKILL');killComplete=true;stopped();},3000);
+          killTimer=setTimeout(()=>{signalGroup('SIGKILL');killComplete=true;stopped();},CLAUDE_STOP_GRACE_MS);
         } else {
           killComplete=true;stopped();
         }

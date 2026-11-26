@@ -4,8 +4,19 @@ import {randomUUID} from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+import ecosystem from '../ecosystem.config.cjs';
 import {configuredPath, dpapi, macDiscordToken, readMacEnv, windowsAppData} from './host-settings.mjs';
 import {loadRegistry} from './registry.mjs';
+
+test('PM2 launches tony and cap from bots with only the protected dotenv path', () => {
+  const cwd = path.resolve(fileURLToPath(new URL('../', import.meta.url)));
+  const env = {HQ_BOTS_ENV_FILE: path.join(cwd, '.env')};
+  assert.deepEqual(ecosystem.apps, [
+    {name: 'tony', script: 'claude-relay/relay.mjs', cwd, env},
+    {name: 'cap', script: 'codex-bridge/bridge.mjs', cwd, env},
+  ]);
+});
 
 test('explicit process paths override dotenv settings and expand home without splitting spaces', () => {
   const value = '~/Library/Application Support/orca/codex-accounts';
@@ -20,7 +31,13 @@ test('dotenv loader requires owner-only mode, preserves quotes and excludes toke
   t.after(() => fs.rmSync(dir, {recursive: true, force: true}));
   const file = path.join(dir, '.env');
   fs.writeFileSync(file, 'CODEX_DISCORD_BOT_TOKEN=synthetic-value\nHQ_ROOT="/tmp/Project Folder"\n', {mode: 0o600});
-  const settings = readMacEnv(file);
+  const previous = process.env.HQ_BOTS_ENV_FILE;
+  t.after(() => {
+    if (previous === undefined) delete process.env.HQ_BOTS_ENV_FILE;
+    else process.env.HQ_BOTS_ENV_FILE = previous;
+  });
+  process.env.HQ_BOTS_ENV_FILE = file;
+  const settings = readMacEnv();
   assert.equal(settings.HQ_ROOT, '/tmp/Project Folder');
   assert.equal(macDiscordToken(settings, 'CODEX_DISCORD_BOT_TOKEN'), 'synthetic-value');
   assert.throws(() => macDiscordToken(settings, 'CLAUDE_DISCORD_BOT_TOKEN'), {message: /CLAUDE_DISCORD_BOT_TOKEN/});

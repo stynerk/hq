@@ -8,7 +8,7 @@ import {parseEnv} from 'node:util';
 export const botsRoot = fileURLToPath(new URL('../', import.meta.url));
 export const isMac = process.platform === 'darwin';
 
-export function readMacEnv(file = path.join(botsRoot, '.env')) {
+export function readMacEnv(file = process.env.HQ_BOTS_ENV_FILE || path.join(botsRoot, '.env')) {
   const message = 'macOS 설정 파일 bots/.env를 현재 사용자 소유의 권한 0600 일반 파일로 준비하세요.';
   let fd;
   try {

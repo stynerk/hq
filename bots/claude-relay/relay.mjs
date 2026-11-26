@@ -5,7 +5,7 @@ import {fileURLToPath} from 'node:url';
 import {Client, GatewayIntentBits, Partials} from 'discord.js';
 import {Registry,updateFrontmatter,locate} from '../shared/registry.mjs';
 import {classify,ExchangeCounter,chunk,refreshProjectRoute} from '../shared/routing.mjs';
-import {LaneQueue,readJSON,saveJSON,readEncryptedToken,importedToken,serviceWorkspace,runClaude,relayInstructions,claudeCommand} from './runtime.mjs';
+import {LaneQueue,readJSON,saveJSON,readEncryptedToken,importedToken,serviceWorkspace,runClaude,relayInstructions,claudeCommand,CLAUDE_STOP_GRACE_MS} from './runtime.mjs';
 import {configuredPath,dpapi,isMac,macDiscordToken,readMacEnv} from '../shared/host-settings.mjs';
 import {initHQ,newProject,commitRegistry} from './provision.mjs';
 import {dueRuns,describeSchedules,scheduleChannelId} from '../shared/schedule.mjs';
@@ -186,7 +186,7 @@ function shutdown(code=0) {
   watchdog?.stop();
   const active=[...queue.lanes.keys()].map(lane=>queue.stop(lane)).some(Boolean);
   bot.destroy();
-  if (isMac && active) setTimeout(()=>process.exit(code),3500);
+  if (isMac && active) setTimeout(()=>process.exit(code),CLAUDE_STOP_GRACE_MS + 250);
   else process.exit(code);
 }
 process.on('SIGINT',()=>shutdown());
