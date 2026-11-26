@@ -81,8 +81,24 @@ export function geminiCommand({platform = process.platform, env = process.env, e
   return {cmd: process.execPath, pre: [entry]};
 }
 
-// 리뷰어 지침에 "출력은 [리뷰어: Gemini]로 시작"이 있어 Gemini가 머리표를 따라 쓰기도 한다. 머리표는 스크립트가 한 번만 붙인다.
-export const stripHeader = text => String(text).replace(/^\s*\[리뷰어:[^\]\n]*\]\s*\n?/, '');
+// 다음 본문 줄의 들여쓰기를 보존하면서 모델이 붙인 머리표를 제거한다.
+export const stripHeader = text => String(text).replace(/^\s*\[리뷰어:[^\]\r\n]*\][ \t]*(?:\r?\n(?:[ \t]*\r?\n)*)?/, '');
+
+export function normalizeReviewOutput(text) {
+  const candidate = String(text).replace(/^(?:[ \t]*\r?\n)+/, '');
+  const opening = candidate.match(/^ {0,3}(`{3,}|~{3,})([^\r\n]*)\r?\n/);
+  if (!opening) return stripHeader(text);
+
+  const [openingLine, fence, info] = opening;
+  if (fence[0] === '`' && info.includes('`')) return stripHeader(text);
+
+  const body = candidate.slice(openingLine.length);
+  // 첫 닫는 펜스 뒤에 내용이 있으면 전체를 감싼 블록이 아니다.
+  const closing = body.match(new RegExp(`^ {0,3}${fence[0]}{${fence.length},}[ \\t]*\\r?$`, 'm'));
+  if (!closing || body.slice(closing.index + closing[0].length).trim()) return stripHeader(text);
+
+  return stripHeader(body.slice(0, closing.index).replace(/\r?\n$/, ''));
+}
 
 function runCli({cmd, args, input, engine, env, timeoutMs, spawnFn, setup, verifyInit}) {
   return new Promise((resolve, reject) => {
@@ -186,7 +202,7 @@ function antigravityResponse(output) {
     throw new Error('Antigravity 검토에서 도구가 호출됐습니다.');
   }
   const {result} = events.findLast(event => event?.event === 'result') ?? {};
-  if (result?.status !== 'SUCCESS' || typeof result.response !== 'string' || !stripHeader(result.response).trim()) {
+  if (result?.status !== 'SUCCESS' || typeof result.response !== 'string' || !normalizeReviewOutput(result.response).trim()) {
     throw new Error('Antigravity 응답 없음');
   }
   return result.response.trim();
@@ -239,7 +255,7 @@ async function main() {
   if (engine === 'antigravity') process.stderr.write(`Antigravity CLI 사용 (${AGY_MODEL})\n`);
   let label = role || engine === 'antigravity' ? 'Gemini' : `Gemini ${reviewModel()}`;
   if (role === 'loki') label = 'Gemini — Loki';
-  process.stdout.write(`[리뷰어: ${label}]\n` + stripHeader(output) + '\n');
+  process.stdout.write(`[리뷰어: ${label}]\n` + normalizeReviewOutput(output) + '\n');
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch(e => { console.error(e.message); process.exit(1); });

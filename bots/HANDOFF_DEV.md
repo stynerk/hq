@@ -1,7 +1,6 @@
-# Issue #38 개발 인계
+# Issue #42 개발 인계
 
-- `gemini-review.mjs`는 기존 Gemini CLI를 기본으로 쓴다. `GEMINI_REVIEW_ENGINE=antigravity`를 선택하면 Antigravity의 Gemini 4 Argon을 먼저 실행하고 실패 시 Gemini CLI로 재시도한다. `--role loki`와 `--role fury`는 각각 기존 지침을 사용한다.
-- Antigravity에는 별도 임시 작업 폴더와 제한된 리뷰 에이전트를 사용한다. 초기 이벤트의 모델과 에이전트가 일치하면 stdin으로 자료를 전달한다. CLI의 진단 원문은 외부에 출력하지 않는다.
-- Mac mini에서 Antigravity CLI v1.5.18의 기존 세션으로 Loki와 Fury를 각각 한 번 실제 실행했다. 합성 기획서에 대한 출력 원문은 PR 본문에 있다. Gemini 폴백 동작은 자동 테스트로 검증한다.
-- `npm --prefix bots test`에서 149개 통과, Windows 전용 DPAPI 1개 건너뜀, 실패 0개를 확인했다.
-- Tony 검토와 QA 다음에 HJ가 병합과 운영 반영을 한다. 운영 사용자에게 정식 `agy` 실행 파일이 준비되면 PATH 또는 `AGY_REVIEW_BIN`의 절대 경로를 확인하고 릴레이에 실행기 환경 변수를 적용한다.
+- `gemini-review.mjs`의 공통 출력 단계에서 응답 전체를 감싼 코드 펜스 하나를 벗긴 다음 모델이 붙인 선두 리뷰어 머리표를 지운다. 스크립트가 역할에 맞는 기존 머리표를 한 번 출력한다.
+- 펜스가 본문 일부에만 있거나 독립 코드 블록이 여러 개면 유지한다. Antigravity와 Gemini CLI가 같은 출력 정리를 거친다.
+- 이전 버전의 CLI에 Issue의 응답을 재생해 두 실행기 경로에서 중복 머리표와 바깥 펜스를 재현했다. 수정 후 실행기마다 모의 CLI 6개 시나리오의 stdout이 기대값과 일치했다. 전체 테스트는 151개 통과, 실패 0개, Windows 전용 DPAPI 1개 건너뜀이다.
+- 다음은 Tony 검토와 QA다. 병합 뒤 운영 체크아웃을 갱신하면 다음 스크립트 호출부터 반영된다.
