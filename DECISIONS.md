@@ -51,3 +51,4 @@ HJ가 확정한 운영 결정을 날짜순으로 쌓는다. 프로젝트 고유 
 | 2026-11-26 | 대표는 Tony·Cap 유지, 역할은 서비스PM 서브에이전트로 늘린다: Jarvis(researcher, 착수 때 API 지도·경쟁 3개), Thanos(business, 신규), Loki(challenger, 신규), Fury(reviewer, 심사위원 3인), Friday(editor, 신규). Loki·Fury는 Gemini·Antigravity로 실행한다. 개발PM 내부 서브에이전트는 이름 없이 두고 qa는 시연 대본을 테스트로 실행한다 | HJ 결정. LinkedIn 공모전 사례 검토 |
 | 2026-11-27 | hq `bots/` PR은 Tony 검토·테스트 통과 뒤 총괄이 병합한다(새 기능 포함). 권한 확대·보안·인증·결정권 변경은 HJ 병합 유지. 운영 반영(pull, pm2 restart)은 HJ | HJ 지시("이제 머지는 네가 해라"), PR #39 |
 | 2026-11-27 | Thanos를 서브에이전트에서 세 번째 대표 **CBO/CMO**(Claude 봇)로 올린다. 사업(누가 돈을 내나, 가격, 시장, 단위 경제성)과 마케팅(포지셔닝, 타깃, 고객 획득, 메시지 방향)을 맡고 HJ에게 바로 보고한다. #thanos 채널 하나에서 일하고 프로젝트 채널에서는 @Thanos로 부른다. 권한은 제안까지, 결정·집행은 HJ | HJ 결정(B안). agents/cbo.md, playbooks/decision-rights.md |
+| 2026-11-27 | Thanos는 #thanos 채널을 두고, #hq와 프로젝트 채널에서도 @Thanos로 부를 때만 답한다. dev 스레드에서는 답하지 않는다 | HJ 결정. hq Issue #44 |
