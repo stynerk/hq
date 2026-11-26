@@ -56,6 +56,8 @@ export function loadRegistry(hqRoot) {
       repo: data.repo || null, localPath: data.local_path || null,
       channelId: str(channelConfig?.channel_id), devThreadId: str(channelConfig?.dev_thread_id),
       servicePm: data.agents?.service_pm || {name: 'Tony'}, devPm: data.agents?.dev_pm || {name: 'Cap'},
+      // Claude 쪽 대표의 역할 파일. 보통 service-pm, hq 프로젝트는 hq-lead(총괄).
+      leadRole: data.lead_role || 'service-pm',
       gates: data.gates || [], body, file,
     };
     projects.push(p);

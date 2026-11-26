@@ -3,6 +3,8 @@ node_modules/
 .env.*
 !.env.example
 private/
+# hq dev 스레드: 총괄 작업 트리(.worktrees/service)와 Cap의 Issue별 작업 트리
+.worktrees/
 *.log
 .DS_Store
 Thumbs.db

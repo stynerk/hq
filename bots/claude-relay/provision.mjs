@@ -25,6 +25,8 @@ export async function initHQ({guild,reg,hqRoot,reload=()=>{}}){
   };
   const home=await text('hq','hq',hq);const alerts=await text('hq_alerts','hq-alerts',hq);const keep=new Set([home.id,alerts.id]);
   for(const p of reg.projects){
+    // hq 프로젝트의 채널은 #hq 자체다. PROJECTS로 옮기거나 새로 만들지 않는다(dev 스레드는 !project new hq로 만든다).
+    if(p.slug==='hq')continue;
     if(p.status!=='active'){
       // Preserve existing paused channels in place, without provisioning or enabling them.
       if(p.channelId)keep.add(p.channelId);

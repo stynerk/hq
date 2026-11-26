@@ -192,6 +192,25 @@ test('#hq: lead by default, Codex read-only only when called, no bot traffic', (
   assert.equal(classify(msg({channel: {id: '900'}, content: '!project new demo stynerk/demo'}), {self: 'claude', reg}).kind, 'command');
 });
 
+test('#hq dev thread routes like a project dev thread with the lead as hq-lead', () => {
+  const dir = fixture();
+  updateFrontmatter(path.join(dir, 'config', 'discord.md'), d => { d.project_channels.hq = {channel_id: '900', dev_thread_id: '950'}; });
+  const reg = loadRegistry(dir);
+  assert.deepEqual(reg.errors, []);
+  const dev = o => msg({channel: {id: '950', parentId: '900'}, ...o});
+  const lead = classify(dev(), {self: 'claude', reg});
+  assert.equal(lead.role, 'hq-lead'); assert.equal(lead.lane, 'hq'); assert.equal(lead.place, 'dev'); assert.equal(lead.project.slug, 'hq');
+  assert.equal(classify(dev(), {self: 'codex', reg}).kind, 'ignore');
+  assert.equal(classify(dev({content: `<@${CODEX}> 확인`}), {self: 'codex', reg}).role, 'dev-pm');
+  const handoff = classify(dev({author: {id: CLAUDE, bot: true}, content: `<@${CODEX}> TASK_READY #27`}), {self: 'codex', reg});
+  assert.equal(handoff.mode, 'execute'); assert.equal(handoff.keyword.issue, 27);
+  // #hq 본문과 dev가 아닌 스레드는 그대로 총괄 경로
+  assert.equal(classify(msg({channel: {id: '900'}}), {self: 'claude', reg}).project, null);
+  assert.equal(classify(msg({channel: {id: '951', parentId: '900'}}), {self: 'claude', reg}).project, null);
+  // 다른 프로젝트의 리드는 서비스PM 그대로
+  assert.equal(classify(msg(), {self: 'claude', reg}).role, 'service-pm');
+});
+
 test('unregistered channels: answer once only when called, !hq init allowed', () => {
   const reg = loadRegistry(fixture());
   assert.equal(classify(msg({channel: {id: 'zzz'}}), {self: 'claude', reg}).kind, 'ignore');

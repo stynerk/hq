@@ -101,7 +101,9 @@ export function classify(m, {self, reg, repliesToSelf = false, exchangeCount = 0
 
   // #hq: HJ의 글에만 답한다. 총괄(Claude)이 기본이고, Cap(Codex)은 불렸을 때만 hq 읽기 전용으로 답한다(HJ 지시 2026-11-26).
   // 봇끼리는 #hq에서 주고받지 않는다(인계는 dev 스레드).
-  if (reg.hqChannelId && (chId === reg.hqChannelId || String(ch.parentId) === reg.hqChannelId)) {
+  // 단, #hq 아래의 등록된 dev 스레드(hq 프로젝트)는 프로젝트 dev 스레드와 같이 처리한다(HJ 결정 2026-11-26).
+  const where = locate(reg, ch);
+  if (reg.hqChannelId && where?.kind !== 'dev' && (chId === reg.hqChannelId || String(ch.parentId) === reg.hqChannelId)) {
     if (!isOwner) return ignore('hq-channel');
     const calledSelf = mentions(raw, selfId) || repliesToSelf || (self === 'codex' && /^!codex(\s|$)/i.test(raw));
     const calledPeer = mentions(raw, peerId);
@@ -111,7 +113,6 @@ export function classify(m, {self, reg, repliesToSelf = false, exchangeCount = 0
     return {kind: 'chat', lane: 'hq', role: self === 'claude' ? 'hq-lead' : 'hq-reader', project: null, mode: 'owner', text: cleaned || ownerText};
   }
 
-  const where = locate(reg, ch);
   if (!where) {
     if (isOwner && text.startsWith('!hq init')) return {kind: 'command', text, scope: 'anywhere'};
     if (isOwner && (mentions(raw, selfId) || repliesToSelf)) return {kind: 'unregistered', channelId: chId};
@@ -121,7 +122,7 @@ export function classify(m, {self, reg, repliesToSelf = false, exchangeCount = 0
   if (project.status === 'archived') return ignore('archived');
   if (project.status !== 'active') return ignore('inactive-project');
   const lane = project.slug;
-  const role = self === 'claude' ? 'service-pm' : 'dev-pm';
+  const role = self === 'claude' ? (project.leadRole || 'service-pm') : 'dev-pm';
   const base = {lane, role, project, place};
 
   if (isOwner) {
