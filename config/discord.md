@@ -34,6 +34,9 @@ project_channels:
   our-adventure:
     channel_id: "1572005322837725184"
     dev_thread_id: "1572005326054629397"
+  hq:
+    channel_id: "1571771762578825298"
+    dev_thread_id: "1575342610414051460"
 ---
 
 # 디스코드 ID
