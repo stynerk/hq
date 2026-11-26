@@ -9,7 +9,7 @@ import { chunks } from './rpc.mjs';
 import {Registry, locate} from '../shared/registry.mjs';
 import {classify, ExchangeCounter, refreshProjectRoute} from '../shared/routing.mjs';
 import {LaneJobs} from '../shared/lane-jobs.mjs';
-import {executionContext, trustedAttachmentSource, canRequestApproval} from './policy.mjs';
+import {executionContext, trustedAttachmentSource, canRequestApproval, permissionsResponse} from './policy.mjs';
 import { ProfileServers, selectProfile, profileSessionKey, isUsageLimit } from './profiles.mjs';
 import { openThread } from './sessions.mjs';
 import { startWatchdog, discordReady } from '../shared/watchdog.mjs';
@@ -112,7 +112,7 @@ async function handleRequest(msg) {
       new ButtonBuilder().setCustomId(`deny:${key}`).setLabel('거절').setStyle(ButtonStyle.Danger));
     const detail = JSON.stringify({command: p.command, cwd: p.cwd, reason: p.reason, grantRoot: p.grantRoot});
     await send(channel, `Codex 승인 요청\n${detail.slice(0, 1500)}`, {components: [row]});
-  } else if (method === 'item/permissions/requestApproval') rpc.respond(id, {permissions: {}, scope: 'turn'});
+  } else if (method === 'item/permissions/requestApproval') rpc.respond(id, permissionsResponse(active, p));
   else if (method === 'mcpServer/elicitation/request') rpc.respond(id, {action: 'decline', content: null});
   else if (method === 'item/tool/requestUserInput') {
     rpc.respond(id, {answers: {}});

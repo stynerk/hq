@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {executionContext, trustedAttachmentSource, canRequestApproval} from './policy.mjs';
+import {executionContext, trustedAttachmentSource, canRequestApproval, permissionsResponse} from './policy.mjs';
 
 function fixture() {
   const project = {slug:'one',localPath:'/workspace/one',body:'Project policy',devPm:{name:'Cap'}};
@@ -33,6 +33,13 @@ test('developer instructions direct review handoffs to the current relay identit
 test('read-only and unknown turns cannot request elevated approval',()=>{
   for (const active of [null,{}, {readOnly:true,sandbox:'read-only'},{readOnly:true,sandbox:'workspace-write'},{readOnly:false,sandbox:'read-only'},{readOnly:false,sandbox:'danger-full-access'}]) assert.equal(canRequestApproval(active),false);
   assert.equal(canRequestApproval({readOnly:false,sandbox:'workspace-write'}),true);
+});
+
+test('permission requests are granted for the turn only in writable lanes',()=>{
+  const req={permissions:{network:{enabled:true}}};
+  assert.deepEqual(permissionsResponse({readOnly:false,sandbox:'workspace-write'},req),{permissions:req.permissions,scope:'turn'});
+  for (const active of [null,{readOnly:true,sandbox:'read-only'},{readOnly:false,sandbox:'danger-full-access'}]) assert.deepEqual(permissionsResponse(active,req),{permissions:{},scope:'turn'});
+  assert.deepEqual(permissionsResponse({readOnly:false,sandbox:'workspace-write'},{}),{permissions:{},scope:'turn'});
 });
 test('attachment trust is owner-only or executing peer in registered dev thread',()=>{
   const {reg,route}=fixture();
