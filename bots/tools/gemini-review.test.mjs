@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {EventEmitter} from 'node:events';
 import {PassThrough} from 'node:stream';
-import {parseArgs, buildPrompt, stripFrontmatter, runGemini, runAntigravity, runReview, reviewModel, geminiCommand, stripHeader} from './gemini-review.mjs';
+import {parseArgs, buildPrompt, stripFrontmatter, runGemini, runAntigravity, runReview, reviewModel, geminiCommand, stripHeader, normalizeReviewOutput} from './gemini-review.mjs';
 
 test('parseArgs requires criteria and at least one file', () => {
   assert.deepEqual(parseArgs(['--criteria', 'c.md', 'a.md', 'b.md']), {criteria: 'c.md', files: ['a.md', 'b.md']});
@@ -114,6 +114,7 @@ test('runAntigravity rejects tool calls, invalid streams, and unsuccessful or em
     ['garbage', /응답 형식 오류/],
     [resultEvent('ERROR', 'synthetic provider diagnostic'), /응답 없음/],
     [resultEvent('SUCCESS', '  '), /응답 없음/],
+    [resultEvent('SUCCESS', '```markdown\n[리뷰어: Gemini]\n```'), /응답 없음/],
   ]) {
     await assert.rejects(runAntigravity('P', {spawnFn: fakeSpawn({init: initEvent(), stdout})}), expected);
   }
@@ -178,4 +179,23 @@ test('geminiCommand runs the installed entry with node on Windows, without a she
 test('stripHeader removes a header Gemini copied from the rubric', () => {
   assert.equal(stripHeader('[리뷰어: Gemini]\n판정: 반려'), '판정: 반려');
   assert.equal(stripHeader('판정: 통과'), '판정: 통과');
+});
+
+test('normalizeReviewOutput removes an enclosing fence and copied header', () => {
+  const header = '[리뷰어: Gemini — Loki]';
+  const body = '반론 (심각도 순, 최대 5개):\n1. 근거가 부족하다.';
+  assert.equal(normalizeReviewOutput(['```', header, body, '```'].join('\n')), body);
+  assert.equal(normalizeReviewOutput(['', '```markdown', header, '판정: 반려', '```', ''].join('\r\n')), '판정: 반려');
+  assert.equal(normalizeReviewOutput('~~~markdown\n판정: 통과\n~~~'), '판정: 통과');
+});
+
+test('normalizeReviewOutput preserves code blocks within a response', () => {
+  const code = '  ```js\n  const score = 1;\n  ```';
+  assert.equal(normalizeReviewOutput(['````', '[리뷰어: Gemini]', code, '`````'].join('\n')), code);
+  assert.equal(normalizeReviewOutput(`[리뷰어: Gemini]\n${code}\n설명`), `${code}\n설명`);
+
+  const partial = '```js\nconst score = 1;\n```\n설명';
+  const separate = '```js\nconst score = 1;\n```\n\n```text\n판정: 통과\n```';
+  const unclosed = '```text\n판정: 통과\n~~~';
+  for (const response of [partial, separate, unclosed]) assert.equal(normalizeReviewOutput(response), response);
 });
