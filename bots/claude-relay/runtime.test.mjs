@@ -190,14 +190,23 @@ test('Thanos uses public web tools with restricted settings and exposes no Disco
   assert.equal(args[args.indexOf('--tools') + 1], 'WebSearch,WebFetch');
   assert.equal(args[args.indexOf('--permission-mode') + 1], 'plan');
   for (const flag of ['--restricted', '--strict-mcp-config', '--disable-slash-commands']) assert.ok(args.includes(flag));
-  assert.deepEqual(args.slice(args.indexOf('--allowedTools') + 1, args.indexOf('--restricted')), ['WebSearch', 'WebFetch']);
-  assert.equal(args[args.indexOf('--disallowedTools') + 1], 'mcp__*');
+  assert.deepEqual(args.slice(args.indexOf('--allowedTools') + 1, args.indexOf('--restricted')), ['WebSearch', 'WebFetch', 'mcp__thanos_market__search']);
+  assert.ok(!claudeArgs('prompt').includes('--mcp-config'));
+  const config = JSON.parse(args[args.indexOf('--mcp-config') + 1]);
+  assert.deepEqual(Object.keys(config.mcpServers), ['thanos_market']);
+  assert.equal(config.mcpServers.thanos_market.command, process.execPath);
+  assert.ok(config.mcpServers.thanos_market.args[0].endsWith('thanos-market.mjs'));
+  assert.equal(config.mcpServers.thanos_market.alwaysLoad, true);
+  assert.equal(config.mcpServers.thanos_market.timeout, 130_000);
   assert.equal(args[args.indexOf('--resume') + 1], 'session');
   const result = await runClaude({
     cwd: os.tmpdir(), prompt: '가격?', system: 'CBO', thanos: true,
+    marketEnv: {AGY_BIN: '/test/agy path', FIXTURE_DISCORD_BOT_TOKEN: 'synthetic'},
     resolveCommand: () => ({command: 'fake', prefix: []}),
     spawnFn: (cmd, childArgs, options) => {
       assert.ok(childArgs.includes('--restricted'));
+      const researchConfig = JSON.parse(childArgs[childArgs.indexOf('--mcp-config') + 1]);
+      assert.deepEqual(researchConfig.mcpServers.thanos_market.env, {AGY_BIN: '/test/agy path'});
       assert.equal(Object.hasOwn(options.env, tokenKey), false);
       const child = new EventEmitter();
       child.pid = 99999999;

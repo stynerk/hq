@@ -5,6 +5,7 @@ import {spawn, execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {fileURLToPath} from 'node:url';
 import {botIdentityInstructions} from '../shared/bot-context.mjs';
+import {THANOS_MARKET_TOOL, thanosMarketConfig} from './thanos-market.mjs';
 const exec = promisify(execFile);
 // Escalate before PM2's default 1.6-second shutdown deadline.
 export const CLAUDE_STOP_GRACE_MS = 750;
@@ -35,17 +36,17 @@ export function cliFailureReason(output,stderr){
 }
 export const DRIVE_TOOL=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..','tools','drive.mjs');
 export const driveRules=(tool=DRIVE_TOOL)=>[`Bash(node ${tool} send *)`,`Bash(node ${tool} read)`,`Bash(node ${tool} read *)`];
-export function claudeArgs(promptFile,{sessionId,consult=false,thanos=false}={}) {
+export function claudeArgs(promptFile,{sessionId,consult=false,thanos=false,marketEnv}={}) {
   // --tools takes tool names only (Bash), --allowedTools takes permission rules (Bash(git *)).
   // In -p mode an unapproved Bash command is denied, so only git/gh run.
   // pm2: exactly `pm2 ls` (status only). jlist prints env vars (secrets); logs/restart are HJ's (2026-11-26 HJ).
   // Drive: only drive.mjs send/read by absolute path, never rclone itself (it could upload any local file) (2026-11-27 HJ).
   const readOnly=consult||thanos;
   const tools=thanos?['WebSearch','WebFetch']:consult?['Read','Glob','Grep']:['Read','Edit','Write','Glob','Grep','WebSearch','WebFetch','Task','TodoWrite','Bash'];
-  const allowed=readOnly?tools:[...tools.filter(t=>t!=='Bash'),'Bash(git *)','Bash(gh *)','Bash(node *gemini-review.mjs *)','Bash(pm2 ls)',...driveRules()];
+  const allowed=thanos?[...tools,THANOS_MARKET_TOOL]:readOnly?tools:[...tools.filter(t=>t!=='Bash'),'Bash(git *)','Bash(gh *)','Bash(node *gemini-review.mjs *)','Bash(pm2 ls)',...driveRules()];
   // --strict-mcp-config: user/plugin MCP servers (e.g. the old Discord plugin) must not load in relay sessions.
   const args=['-p','--output-format','json','--append-system-prompt-file',promptFile,'--permission-mode',readOnly?'plan':'acceptEdits','--strict-mcp-config','--tools',tools.join(','),'--allowedTools',...allowed];
-  if(thanos)args.push('--restricted','--disable-slash-commands','--disallowedTools','mcp__*');
+  if(thanos)args.push('--restricted','--disable-slash-commands','--mcp-config',thanosMarketConfig(marketEnv));
   if(sessionId)args.push('--resume',sessionId);return args;
 }
 export function relayInstructions(route,reg,{canMentionThanos=false}={}) {
@@ -90,7 +91,7 @@ export function claudeCommand({platform=process.platform, env=process.env, exist
   }
   throw new Error('Claude 실행 파일을 찾을 수 없습니다. CLAUDE_BIN에 claude.exe 또는 Claude CLI cli.js의 전체 경로를 지정하세요.');
 }
-export function runClaude({cwd,prompt,system,sessionId,consult=false,thanos=false,signal,timeoutMs=20*60*1000,spawnFn=spawn,resolveCommand=claudeCommand}){
+export function runClaude({cwd,prompt,system,sessionId,consult=false,thanos=false,marketEnv,signal,timeoutMs=20*60*1000,spawnFn=spawn,resolveCommand=claudeCommand}){
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'hq-claude-'));const promptFile=path.join(dir,'system.txt');fs.writeFileSync(promptFile,system);
   return new Promise((resolve,reject)=>{
     let child;let output='';let error='';let done=false;let timer;let killTimer;let aborted=false;let closed=false;let killComplete=false;
@@ -126,7 +127,7 @@ export function runClaude({cwd,prompt,system,sessionId,consult=false,thanos=fals
     if(signal?.aborted)return abort();
     try {
       const launcher=resolveCommand();
-      child=spawnFn(launcher.command,[...launcher.prefix,...claudeArgs(promptFile,{sessionId,consult,thanos})],{
+      child=spawnFn(launcher.command,[...launcher.prefix,...claudeArgs(promptFile,{sessionId,consult,thanos,marketEnv})],{
         cwd,env:thanos?Object.fromEntries(Object.entries(process.env).filter(([key])=>!/_DISCORD_BOT_TOKEN$/i.test(key))):undefined,
         windowsHide:true,stdio:['pipe','pipe','pipe'],shell:false,detached:process.platform !== 'win32',
       });

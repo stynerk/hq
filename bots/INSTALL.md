@@ -108,6 +108,8 @@ PM2의 앱 이름은 Claude 릴레이가 `tony`, Codex 브리지가 `cap`이다.
 
 ### Thanos 운영 반영
 
+시장 조사 검색·수집은 공통 Antigravity 도구를 사용한다. 공통 도구(#38)를 먼저 반영한다. Claude는 출처를 열어 검증하고 종합하며, 조사 도구가 실패하면 Claude 검색을 사용했다고 답에 적는다. 봇 운영 사용자의 `PATH`에서 `agy`를 찾지 못하면 `bots/.env`에 `AGY_BIN`의 절대 경로를 지정한다.
+
 1. HJ가 `bots/.env`에 Thanos 토큰을 `THANOS_DISCORD_BOT_TOKEN`으로 넣는다. 봇과 채널 ID는 `config/discord.md`에서 읽는다. 제한 모드를 지원하는 Claude Code 2.1.248 이상을 사용한다.
 2. HJ가 병합 후 운영 체크아웃을 갱신하고, 등록된 채널에서 Thanos가 채널을 보고 메시지를 보낼 수 있는지 확인한다. Thanos는 Message Content Intent 없이 직접 멘션된 메시지를 받는다.
 3. 저장소 루트에서 아래 명령으로 Tony 라우팅을 반영하고 Thanos 앱을 시작한다.
