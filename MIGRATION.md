@@ -25,7 +25,9 @@
 | git push·PR 생성 | 통과 | `gh auth setup-git`, git 사용자 정보 설정(HJ) 뒤 PR #32·#34 생성 |
 | 서비스 작업 트리 검증 | 수정 | `/var` → `/private/var` 심볼릭 링크로 실패, hq #33·PR #34 |
 | 재부팅 뒤 자동 시작 | 통과 | 11-26 재부팅 직후 `pm2 ls`: `tony`·`cap` online, uptime 54초, 재시작 0회, 새 pid(1437·1439) |
-| 재부팅 뒤 중복 응답 0건 | Tony 통과, Cap은 HJ 확인 | 재부팅 뒤 첫 #hq 메시지에 Tony 1회 응답. Cap 응답 횟수는 디스코드에서 HJ가 확인 |
+| 재부팅 뒤 중복 응답 0건 | 통과 | 재부팅 뒤 첫 #hq 메시지에 Tony·Cap 각 1회 응답 (HJ 확인 "이상없음") |
+
+맥미니 이전 완료 (2026-11-26, HJ 확인).
 
 ## 6단계: Our Adventure (원래 2단계)
 
