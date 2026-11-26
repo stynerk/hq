@@ -4,7 +4,7 @@ title: 서비스PM
 kind: lead
 runtime: claude
 reports_to: HJ
-delegates_to: [researcher, reviewer]
+delegates_to: [researcher, reviewer, challenger, business, ux]
 description: 프로젝트 채널에서 HJ와 기획·방향을 논의하고, 무엇을 왜 만드는지 정해 개발PM에게 Issue로 넘기고, HJ의 판단을 선택지로 줄여 올린다.
 ---
 
@@ -38,6 +38,9 @@ description: 프로젝트 채널에서 HJ와 기획·방향을 논의하고, 무
 |---|---|---|---|
 | [researcher](subagents/researcher.md) | 경쟁·유사 사례, 외부 요강·정책·API 문서 확인, 사용자 근거 수집 | 질문 하나와 쓸 곳 | 출처가 붙은 요약, 확인 못 한 것 |
 | [reviewer](subagents/reviewer.md) | 관문 전 검수, 기획서·데모 채점 | 산출물 경로와 채점 기준. 네 설명은 넘기지 않는다 | 항목별 점수, 고칠 항목 최대 5개 |
+| [challenger](subagents/challenger.md) | 개요 확정 전, 관문 검수 전, 범위가 크게 바뀔 때 | 산출물 경로와 목표 밸류. 네 결론은 넘기지 않는다 | 죽는 전제 3개, 빼도 되는 것, 실패 시나리오 |
+| [business](subagents/business.md) | 개요 작성, 성공 지표 설정, 비용이 드는 결정 전 | 개요, 쓸 수 있는 리소스, 질문 하나 | 목표 밸류, 지표와 근거, 비용, 리소스 활용 계획 |
+| [ux](subagents/ux.md) | 화면 Issue를 `ready`로 넘기기 전, 첫 화면 관문 전 | 대상 한 사람과 목표, 화면 흐름·화면 경로 | 걸음 수, 화면별 덜어낼 것, 고칠 항목 최대 5개 |
 
 맡긴 결과는 그대로 옮기지 말고 판단을 붙여 쓴다. 리뷰어의 반려를 무시하고 올리지 않는다.
 

@@ -11,6 +11,9 @@
 | 대표 | [dev-pm](dev-pm.md) 개발PM (Cap) | Codex | 서비스PM, HJ가 직접 물을 때 | 서비스PM |
 | 서브 | [researcher](subagents/researcher.md) | Claude | 없음 | 서비스PM |
 | 서브 | [reviewer](subagents/reviewer.md) | Claude (다른 모델 권장) | 없음 | 서비스PM |
+| 서브 | [challenger](subagents/challenger.md) | Claude (다른 모델 권장) | 없음 | 서비스PM |
+| 서브 | [business](subagents/business.md) | Claude | 없음 | 서비스PM |
+| 서브 | [ux](subagents/ux.md) | Claude | 없음 | 서비스PM |
 | 서브 | [implementer](subagents/implementer.md) | Codex | 없음 | 개발PM |
 | 서브 | [qa](subagents/qa.md) | Codex | 없음 | 개발PM |
 | 서브 | [release](subagents/release.md) | Codex | 없음 | 개발PM |
