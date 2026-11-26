@@ -170,10 +170,22 @@ test('other bots, webhooks, self, other guilds, alerts, archive are ignored', ()
   assert.equal(c(msg({author: {id: 'someone', bot: false}})).kind, 'ignore');
 });
 
-test('#hq and DM go to the lead; Codex stays out of #hq', () => {
+test('#hq: lead by default, Codex read-only only when called, no bot traffic', () => {
   const reg = loadRegistry(fixture());
-  assert.equal(classify(msg({channel: {id: '900'}}), {self: 'claude', reg}).role, 'hq-lead');
-  assert.equal(classify(msg({channel: {id: '900'}, content: `<@${CODEX}> hi`}), {self: 'codex', reg}).kind, 'ignore');
+  const hq = o => msg({channel: {id: '900'}, ...o});
+  assert.equal(classify(hq(), {self: 'claude', reg}).role, 'hq-lead');
+  assert.equal(classify(hq(), {self: 'codex', reg}).kind, 'ignore');
+  const capOnly = hq({content: `<@${CODEX}> hi`});
+  assert.equal(classify(capOnly, {self: 'claude', reg}).kind, 'ignore');
+  const cap = classify(capOnly, {self: 'codex', reg});
+  assert.equal(cap.role, 'hq-reader'); assert.equal(cap.lane, 'hq'); assert.equal(cap.text, 'hi');
+  const both = hq({content: `<@${CLAUDE}> <@${CODEX}> hi`});
+  assert.equal(classify(both, {self: 'claude', reg}).role, 'hq-lead');
+  assert.equal(classify(both, {self: 'codex', reg}).role, 'hq-reader');
+  assert.equal(classify(hq({content: '!codex 상태'}), {self: 'codex', reg}).role, 'hq-reader');
+  assert.equal(classify(hq({content: `<@${CODEX}> !status`}), {self: 'codex', reg}).kind, 'command');
+  assert.equal(classify(hq({author: {id: CLAUDE, bot: true}, content: `<@${CODEX}> TASK_READY #1`}), {self: 'codex', reg}).kind, 'ignore');
+  assert.equal(classify(hq({author: {id: CODEX, bot: true}, content: `<@${CLAUDE}> hi`}), {self: 'claude', reg}).kind, 'ignore');
   assert.equal(classify(msg({guildId: null}), {self: 'claude', reg}).role, 'hq-lead');
   assert.equal(classify(msg({guildId: null}), {self: 'codex', reg}).role, 'hq-reader');
   assert.equal(classify(msg({guildId: null, author: {id: 'x', bot: false}}), {self: 'claude', reg}).kind, 'ignore');
