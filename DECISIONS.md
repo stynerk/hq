@@ -44,3 +44,4 @@ HJ가 확정한 운영 결정을 날짜순으로 쌓는다. 프로젝트 고유 
 | 2026-11-19 | 테스트의 외부 API 호출은 기록·재생: 처음이거나 정답셋·평가셋·요청이 바뀌면 실제 호출해 기록, 같으면 재생. 쓰기 요청은 항상 모의 응답 | HJ 결정. playbooks/workflow.md 7절 |
 | 2026-11-19 | 릴레이 무응답 점검: dev 스레드에 HJ·개발PM 글이 30분 없으면 서비스PM이 점검하고, 할 일이 없으면 조용히 끝낸다(NOOP). 반응이 없으면 60·120분으로 늘리고, 글이 오면 30분으로 되돌린다. 예약 점검은 그대로 | HJ 결정. 같은 예외로 Tony 작성 |
 | 2026-11-26 | #hq에서 HJ가 Cap을 멘션하거나 Cap 메시지에 답글을 달면 Cap도 hq 읽기 전용으로 답한다. 기본 응답은 총괄, Cap만 부르면 총괄은 빠진다. 봇끼리는 #hq에서 주고받지 않는다 | HJ 지시, hq PR #28. playbooks/discord.md 2절 |
+| 2026-11-26 | Codex 브릿지 계정 홈(모든 business 계정)의 config.toml에 `[sandbox_workspace_write] network_access = true`를 켠다. Cap의 쓰기 레인(dev 스레드)에서 gh·GitHub 조회가 되게 한다. read-only 레인은 그대로 차단. #27 PR은 Tony·Cap 합의로 병합(이 Issue만 bots/ 예외), Mac mini 접속은 HJ | HJ 결정. 계정을 새로 추가하면 같은 설정을 넣는다 |
