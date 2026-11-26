@@ -4,6 +4,11 @@ import {botIdentityInstructions} from '../shared/bot-context.mjs';
 export function canRequestApproval(active) {
   return !!active && active.readOnly === false && active.sandbox === 'workspace-write';
 }
+// 권한 추가 요청(item/permissions/requestApproval): 쓰기 레인이면 요청한 권한을 이번 턴에만 준다(2026-11-26 HJ 결정).
+// 그 밖(읽기 전용·알 수 없는 턴)은 빈 권한으로 막는다.
+export function permissionsResponse(active, params) {
+  return {permissions: canRequestApproval(active) ? (params?.permissions || {}) : {}, scope: 'turn'};
+}
 export function executionContext(route, reg) {
   const readOnly = route.mode === 'consult' || route.role === 'hq-reader';
   const cwd = route.project?.localPath || reg.hqRoot;
