@@ -177,3 +177,42 @@ test('cliFailureReason keeps the reason from JSON result or stderr', () => {
   assert.equal(cliFailureReason('', 'line1\nInvalid API key · Please run /login\n'), 'line1 / Invalid API key · Please run /login');
   assert.match(cliFailureReason('',''), /claude -p/);
 });
+
+test('Thanos uses public web tools with restricted settings and exposes no Discord token to Claude', async t => {
+  const tokenKey = 'FIXTURE_DISCORD_BOT_TOKEN';
+  const previous = process.env[tokenKey];
+  process.env[tokenKey] = 'synthetic';
+  t.after(() => {
+    if (previous === undefined) delete process.env[tokenKey];
+    else process.env[tokenKey] = previous;
+  });
+  const args = claudeArgs('prompt', {thanos: true, sessionId: 'session'});
+  assert.equal(args[args.indexOf('--tools') + 1], 'WebSearch,WebFetch');
+  assert.equal(args[args.indexOf('--permission-mode') + 1], 'plan');
+  for (const flag of ['--restricted', '--strict-mcp-config', '--disable-slash-commands']) assert.ok(args.includes(flag));
+  assert.deepEqual(args.slice(args.indexOf('--allowedTools') + 1, args.indexOf('--restricted')), ['WebSearch', 'WebFetch']);
+  assert.equal(args[args.indexOf('--disallowedTools') + 1], 'mcp__*');
+  assert.equal(args[args.indexOf('--resume') + 1], 'session');
+  const result = await runClaude({
+    cwd: os.tmpdir(), prompt: '가격?', system: 'CBO', thanos: true,
+    resolveCommand: () => ({command: 'fake', prefix: []}),
+    spawnFn: (cmd, childArgs, options) => {
+      assert.ok(childArgs.includes('--restricted'));
+      assert.equal(Object.hasOwn(options.env, tokenKey), false);
+      const child = new EventEmitter();
+      child.pid = 99999999;
+      child.stdout = new EventEmitter();
+      child.stderr = new EventEmitter();
+      child.stdin = new EventEmitter();
+      child.stdin.end = prompt => {
+        assert.equal(prompt, '가격?');
+        setImmediate(() => {
+          child.stdout.emit('data', Buffer.from(JSON.stringify({result: '제안'})));
+          child.emit('close', 0);
+        });
+      };
+      return child;
+    },
+  });
+  assert.equal(result.result, '제안');
+});

@@ -4,7 +4,7 @@ import os from 'node:os';
 import {fileURLToPath} from 'node:url';
 import {Client, GatewayIntentBits, Partials} from 'discord.js';
 import {Registry,updateFrontmatter,locate} from '../shared/registry.mjs';
-import {classify,ExchangeCounter,chunk,refreshProjectRoute} from '../shared/routing.mjs';
+import {classify,ExchangeCounter,chunk,refreshProjectRoute,thanosMentionChannel} from '../shared/routing.mjs';
 import {LaneQueue,readJSON,saveJSON,readEncryptedToken,importedToken,serviceWorkspace,runClaude,relayInstructions,claudeCommand,CLAUDE_STOP_GRACE_MS} from './runtime.mjs';
 import {configuredPath,dpapi,isMac,macDiscordToken,readMacEnv} from '../shared/host-settings.mjs';
 import {initHQ,newProject,commitRegistry} from './provision.mjs';
@@ -14,16 +14,27 @@ import {siblingChannels,formatContext,originLine,CONTEXT_FETCH_LIMIT} from '../s
 import {idleDue,recordActivity,recordCheck,isNoop,idlePrompt} from '../shared/idle.mjs';
 import {startWatchdog,discordReady} from '../shared/watchdog.mjs';
 const here=path.dirname(fileURLToPath(import.meta.url));
+const thanos = process.argv.includes('--thanos');
+if (thanos && !isMac) throw new Error('Thanos는 macOS의 bots/.env 설정을 사용합니다.');
 const settings=isMac?readMacEnv():{};
-const envToken=isMac?macDiscordToken(settings,'CLAUDE_DISCORD_BOT_TOKEN'):null;
+const envToken=isMac?macDiscordToken(settings,thanos?'THANOS_DISCORD_BOT_TOKEN':'CLAUDE_DISCORD_BOT_TOKEN'):null;
 const hqRoot=configuredPath('HQ_ROOT',settings)||path.resolve(here,'../..');
-const privateDir=configuredPath('CLAUDE_PRIVATE_DIR',settings)||path.join(here,'private');fs.mkdirSync(privateDir,{recursive:true});
+const relayPrivateDir=configuredPath('CLAUDE_PRIVATE_DIR',settings)||path.join(here,'private');
+const privateDir=thanos?path.join(relayPrivateDir,'thanos'):relayPrivateDir;
+const thanosWorkspace=path.join(privateDir,'workspace');
+fs.mkdirSync(thanos?thanosWorkspace:privateDir,{recursive:true});
 const claudeExecutable=configuredPath('CLAUDE_BIN',settings);
 const resolveCommand=()=>claudeCommand({env:{...process.env,CLAUDE_BIN:claudeExecutable}});
 const lock=path.join(privateDir,'relay.pid');
 if(fs.existsSync(lock)){const pid=Number(fs.readFileSync(lock,'utf8'));let live=false;try{process.kill(pid,0);live=true;}catch(e){if(e.code==='EPERM')live=true;}if(live)throw new Error('Claude 릴레이가 이미 실행 중입니다.');fs.unlinkSync(lock);}fs.writeFileSync(lock,String(process.pid),{flag:'wx'});
 process.on('exit',()=>{try{if(fs.readFileSync(lock,'utf8')===String(process.pid))fs.unlinkSync(lock);}catch{}});
 const registry=new Registry(hqRoot);if(registry.get().errors.length)throw new Error(registry.get().errors.join('\n'));
+if (thanos) {
+  const {thanosBotId, ownerId, claudeBotId, codexBotId, agents} = registry.get();
+  if (!thanosBotId || [ownerId, claudeBotId, codexBotId].includes(thanosBotId) || !agents.has('cbo')) {
+    throw new Error('레지스트리에서 Thanos 봇 ID와 CBO 지침을 확인하세요.');
+  }
+}
 const configFile=path.join(privateDir,'config.json');const stateFile=path.join(privateDir,'state.json');
 const state=readJSON(stateFile,{sessions:{},seen:[]});state.sessions??={};state.seen??=[];state.schedule??={};state.schedule.runs??={};state.schedule.paused??={};state.contextSeen??={};state.idle??={};
 async function windowsToken() {
@@ -37,10 +48,13 @@ async function windowsToken() {
   return dpapi(config.tokenEncrypted,true);
 }
 const discordToken=isMac?envToken:await windowsToken();
-const bot=new Client({intents:[GatewayIntentBits.Guilds,GatewayIntentBits.GuildMessages,GatewayIntentBits.DirectMessages,GatewayIntentBits.MessageContent],partials:[Partials.Channel]});
+const intents = [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages];
+if (!thanos) intents.push(GatewayIntentBits.DirectMessages, GatewayIntentBits.MessageContent);
+const bot=new Client({intents,partials:thanos?[]:[Partials.Channel]});
 const queue=new LaneQueue();for(const id of state.seen)queue.seen.add(id);
 const counter=new ExchangeCounter();const unregistered=new Set();let adminBusy=false;let shuttingDown=false;
 const send=async(channel,text,peer=null)=>{const users=(Array.isArray(peer)?peer:[peer]).filter(Boolean);for(const content of chunk(text))await channel.send({content,allowedMentions:{parse:[],users,repliedUser:false}});};
+let identityVerified=false;
 const sessionKey=(route,m)=>`${route.lane}|${m.channel.id}|${route.mode==='consult'?'consult':'work'}`;
 // HJ 결정(2026-11-19): 같은 프로젝트의 다른 채널에서 지난번 이후 새로 오간 메시지를 가져온다.
 // 본 시점은 실행이 끝난 뒤에만 저장한다(실패·중지면 다음 실행에 다시 넣는다).
@@ -62,7 +76,8 @@ async function siblingContext(route,m,reg){
 async function runMessage(m,route,signal,extra=''){
   if(shuttingDown||signal.aborted)return;
   const reg=registry.get();route=refreshProjectRoute(route,reg,m.channel);const key=sessionKey(route,m);const cwd=route.project?(route.mode==='consult'?route.project.localPath:await serviceWorkspace(route.project)):hqRoot;if(signal.aborted)return;
-  const system=relayInstructions(route,reg);
+  const canMentionThanos = !route.scheduled && route.mode === 'owner' && reg.thanosBotId && thanosMentionChannel(reg, m.channel);
+  const system=relayInstructions(route,reg,{canMentionThanos});
   const ctx=await siblingContext(route,m,reg);if(shuttingDown||signal.aborted)return;
   const head=route.project?originLine(route.place)+'\n':'';
   const prompt=(ctx.text?ctx.text+'\n\n':'')+head+route.text+'\n'+extra;
@@ -71,15 +86,56 @@ async function runMessage(m,route,signal,extra=''){
   // 무응답 점검에서 할 일이 없으면 아무것도 올리지 않는다.
   if(route.idle&&isNoop(result.result))return;
   // 예약 실행은 HJ가 보고 있지 않으므로 HJ 멘션이 알림으로 가게 허용한다.
-  const peers=[route.place==='dev'?reg.codexBotId:null,route.scheduled?reg.ownerId:null];await send(m.channel,result.result||'(빈 응답)',peers);
+  const peers=[route.place==='dev'?reg.codexBotId:null,route.scheduled?reg.ownerId:null,canMentionThanos?reg.thanosBotId:null];await send(m.channel,result.result||'(빈 응답)',peers);
   // hq Issue #20: dev 스레드 답에서 HJ 멘션 문단은 HJ가 보는 프로젝트 채널로도 옮긴다.
   if(route.place==='dev'&&route.project?.channelId){
     const fwd=forwardMessage(result.result,{ownerId:reg.ownerId,devThreadId:route.project.devThreadId});
     if(fwd)try{const main=await bot.channels.fetch(route.project.channelId);if(main)await send(main,fwd,[reg.ownerId]);}catch(e){console.error('HJ 문단 옮기기 실패: '+e.message);}
   }
 }
+function handleThanos(m, reg) {
+  if (bot.user?.id !== reg.thanosBotId) return;
+  const route = classify(m, {self: 'thanos', reg});
+  if (route.kind !== 'chat') return;
+  const accepted=queue.enqueue(route.lane,m.id,async signal=>{
+    const stillAllowed = current => !shuttingDown && !signal.aborted && !current.errors.length &&
+      !registry.lastError && bot.user?.id === current.thanosBotId && classify(m,{self:'thanos',reg:current}).kind === 'chat';
+    const current=registry.get();
+    const agent=current.agents.get('cbo');
+    if (!agent || !stillAllowed(current)) return;
+    const currentRoute=classify(m,{self:'thanos',reg:current});
+    const system = [
+      agent.body,
+      '너는 CBO/CMO Thanos다. 이 메시지가 들어온 채널에서 사업·마케팅 제안으로 답한다.',
+      'Thanos가 답하는 위치와 멘션 규칙은 릴레이가 적용한다. 직접 메시지를 발송하거나 다른 에이전트를 호출하지 않는다.',
+      '웹 검색과 공개 웹 문서 읽기만 사용할 수 있다. 검색·웹 요청에는 내부 수치, 고객 정보, 비밀값을 보내지 않는다.',
+    ].join('\n\n');
+    const key = sessionKey({...currentRoute, mode: 'consult'}, m);
+    const context = currentRoute.project ? `프로젝트: ${currentRoute.project.title}\n\n` : '';
+    let result;
+    try {
+      result = await runClaude({cwd:thanosWorkspace,prompt:context+currentRoute.text,system,sessionId:state.sessions[key],thanos:true,signal,resolveCommand});
+    } catch {
+      if (stillAllowed(registry.get())) await send(m.channel,'Thanos 응답을 가져오지 못했습니다. 다시 멘션해 주세요.');
+      return;
+    }
+    if (!stillAllowed(registry.get())) return;
+    if (result.session_id) {
+      state.sessions[key]=result.session_id;
+      saveJSON(stateFile,state);
+    }
+    await send(m.channel,result.result||'(빈 응답)');
+  });
+  if (accepted) {
+    state.seen.push(m.id);
+    state.seen=state.seen.slice(-10000);
+    saveJSON(stateFile,state);
+  }
+}
+
 async function handle(m){
-  const reg=registry.get();if(reg.errors.length||registry.lastError)return;
+  const reg=registry.get();if(!identityVerified||reg.errors.length||registry.lastError)return;
+  if (thanos) return handleThanos(m,reg);
   const where=locate(reg,m.channel);
   if(where)counter.record(m,{ownerId:reg.ownerId,botIds:[reg.claudeBotId,reg.codexBotId]});
   // 무응답 점검: dev 스레드에 HJ나 Cap이 글을 쓰면 활동으로 기록하고 간격을 처음으로 되돌린다.
@@ -158,14 +214,10 @@ async function idleTick(){
 }
 let scheduleTimer=null;
 bot.once('clientReady',()=>{
-  // 시작 직후 바로 돌지 않도록 무응답 기준점을 지금으로 잡는다.
-  const now=Date.now();for(const p of registry.get().projects)if(p.idle)state.idle[p.slug]=recordActivity(state.idle[p.slug],now);saveJSON(stateFile,state);
-  scheduleTimer=setInterval(()=>{void scheduleTick().catch(e=>console.error('예약 점검 확인 실패: '+e.message));void idleTick().catch(e=>console.error('무응답 점검 확인 실패: '+e.message));},30000);
-});
-bot.once('clientReady',()=>{
   if (isMac) {
-    if (registry.get().claudeBotId !== bot.user.id) {
-      console.error('Claude bot identity differs from registry.');
+    const reg=registry.get();
+    if ((thanos?reg.thanosBotId:reg.claudeBotId) !== bot.user.id) {
+      console.error((thanos?'Thanos':'Claude')+' bot identity differs from registry.');
       shutdown(1);
       return;
     }
@@ -175,9 +227,17 @@ bot.once('clientReady',()=>{
     updateFrontmatter(file,d=>{d.bots.claude_relay.user_id=bot.user.id;d.bots.claude_relay.verified=true;});
     registry.reload();
   }
-  console.log('Claude relay connected.');
+  identityVerified=true;
+  console.log((thanos?'Thanos':'Claude')+' relay connected.');
+  if (thanos) return;
+  // 시작 직후 바로 돌지 않도록 무응답 기준점을 지금으로 잡는다.
+  const now=Date.now();for(const p of registry.get().projects)if(p.idle)state.idle[p.slug]=recordActivity(state.idle[p.slug],now);saveJSON(stateFile,state);
+  scheduleTimer=setInterval(()=>{void scheduleTick().catch(e=>console.error('예약 점검 확인 실패: '+e.message));void idleTick().catch(e=>console.error('무응답 점검 확인 실패: '+e.message));},30000);
 });
-bot.on('messageCreate',m=>{void handle(m).catch(e=>send(m.channel,e.message).catch(()=>{}));});bot.on('error',()=>console.error('Discord connection error.'));
+bot.on('messageCreate',m=>{void handle(m).catch(e=>{
+  if(thanos) console.error('Thanos message handling failed.');
+  else void send(m.channel,e.message).catch(()=>{});
+});});bot.on('error',()=>console.error('Discord connection error.'));
 let watchdog;
 function shutdown(code=0) {
   if (shuttingDown) return;

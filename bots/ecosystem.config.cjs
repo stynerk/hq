@@ -4,6 +4,7 @@ module.exports = {
   apps: [
     {name: 'tony', script: 'claude-relay/relay.mjs'},
     {name: 'cap', script: 'codex-bridge/bridge.mjs'},
+    {name: 'thanos', script: 'claude-relay/relay.mjs', args: ['--thanos']},
   ].map(app => ({
     ...app,
     cwd: __dirname,

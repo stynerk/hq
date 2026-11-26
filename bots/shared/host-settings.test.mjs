@@ -19,12 +19,13 @@ function setDotenvPath(t, file) {
   else process.env.HQ_BOTS_ENV_FILE = file;
 }
 
-test('PM2 launches tony and cap from bots with only the protected dotenv path', () => {
+test('PM2 launches tony, cap and thanos with only the protected dotenv path', () => {
   const cwd = path.resolve(fileURLToPath(new URL('../', import.meta.url)));
   const env = {HQ_BOTS_ENV_FILE: path.join(cwd, '.env')};
   assert.deepEqual(ecosystem.apps, [
     {name: 'tony', script: 'claude-relay/relay.mjs', cwd, env},
     {name: 'cap', script: 'codex-bridge/bridge.mjs', cwd, env},
+    {name: 'thanos', script: 'claude-relay/relay.mjs', args: ['--thanos'], cwd, env},
   ]);
 });
 
