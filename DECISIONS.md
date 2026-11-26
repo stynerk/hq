@@ -49,3 +49,4 @@ HJ가 확정한 운영 결정을 날짜순으로 쌓는다. 프로젝트 고유 
 | 2026-11-26 | 작업 트리를 새로 만들면 `npm --prefix bots ci`까지 실행한다(`bots/package-lock.json`이 있는 저장소) | HJ 지시. playbooks/workflow.md 5절, hq PR #34 테스트 로드 실패 |
 | 2026-11-27 | 구글 드라이브는 산출물 전달용이다. 정본과 에이전트 사이 작업은 Git의 md 그대로(2026-11-16 결정 유지). Git에 커밋된 기획안·테스트 문서·데이터를 드라이브 `HQ/<프로젝트>/`로 한 방향으로 보내고(md→Google 문서, csv→Google 시트), HJ가 올리거나 고친 파일은 Tony가 읽기 전용으로 받아 Git에 반영한다. 에이전트는 rclone을 직접 쓰지 않고 `bots/tools/drive.mjs`만 쓴다 | HJ 결정. MCP·정기 동기화는 쓰지 않음 |
 | 2026-11-26 | 대표는 Tony·Cap 유지, 역할은 서비스PM 서브에이전트로 늘린다: Jarvis(researcher, 착수 때 API 지도·경쟁 3개), Thanos(business, 신규), Loki(challenger, 신규), Fury(reviewer, 심사위원 3인), Friday(editor, 신규). Loki·Fury는 Gemini·Antigravity로 실행한다. 개발PM 내부 서브에이전트는 이름 없이 두고 qa는 시연 대본을 테스트로 실행한다 | HJ 결정. LinkedIn 공모전 사례 검토 |
+| 2026-11-27 | hq `bots/` PR은 Tony 검토·테스트 통과 뒤 총괄이 병합한다(새 기능 포함). 권한 확대·보안·인증·결정권 변경은 HJ 병합 유지. 운영 반영(pull, pm2 restart)은 HJ | HJ 지시("이제 머지는 네가 해라"), PR #39 |

@@ -30,5 +30,5 @@ gates: []
 
 ## 이 프로젝트만의 규칙
 
-- 규칙(playbooks, agents) 변경은 HJ 확정 뒤에만 병합한다. `bots/` 코드는 브랜치와 PR로 하고, 병합과 봇 재시작·운영 호스트 전환은 HJ가 한다.
+- 규칙(playbooks, agents) 변경은 HJ 확정 뒤에만 병합한다. `bots/` 코드는 브랜치와 PR로 한다. 병합은 Tony가 한다(권한 확대·보안·인증·결정권 변경은 HJ, [decision-rights.md](../playbooks/decision-rights.md)). 봇 재시작·운영 호스트 전환은 HJ가 한다.
 - 전체 상태 보고에서 hq는 제품 프로젝트와 따로 한 줄로 쓴다.
