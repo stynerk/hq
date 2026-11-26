@@ -35,12 +35,15 @@ HJ (오너)
 └ 총괄 hq-lead ─────────── #hq
    └ 프로젝트마다
       ├ 서비스PM service-pm ─ #<프로젝트>       HJ와 기획·방향
-      │  ├ researcher        조사
-      │  └ reviewer          검수·채점
+      │  ├ Jarvis  researcher   조사·API 지도·경쟁
+      │  ├ Thanos  business     사업 모델·가격·시장
+      │  ├ Loki    challenger   반대 심문 (Gemini)
+      │  ├ Fury    reviewer     심사위원 패널 3인 (Gemini)
+      │  └ Friday  editor       30초 문장·용어·수치 표기
       └ 개발PM dev-pm ─────── #<프로젝트> › dev  개발·QA·릴리즈
-         ├ implementer       구현
-         ├ qa                테스트·QA
-         └ release           릴리즈 준비
+         ├ implementer          구현
+         ├ qa                   테스트·QA·시연 대본
+         └ release              릴리즈 준비
 ```
 
 대표 에이전트(총괄, 서비스PM, 개발PM)는 디스코드에서 사람과 대화하고 서브에이전트에게 일을 나눠 준다. 서브에이전트는 사람과 직접 대화하지 않고 결과를 자기 대표에게만 돌려준다. 자세한 형식은 [agents/README.md](agents/README.md).

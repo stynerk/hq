@@ -13,7 +13,7 @@
 
 ## 서브에이전트
 
-`.claude/agents/`의 researcher, reviewer를 쓴다. hq `agents/`에서 내보낸 사본이므로 여기서 고치지 않는다.
+`.claude/agents/`의 researcher(Jarvis), business(Thanos), challenger(Loki), reviewer(Fury), editor(Friday)를 쓴다. hq `agents/`에서 내보낸 사본이므로 여기서 고치지 않는다.
 
 ## 이 저장소에서 지킬 것
 

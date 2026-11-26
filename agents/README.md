@@ -9,14 +9,19 @@
 | 대표 | [hq-lead](hq-lead.md) 총괄 (Tony) | Claude | HJ (#hq) | HJ |
 | 대표 | [service-pm](service-pm.md) 서비스PM (Tony) | Claude | HJ (#프로젝트) | HJ |
 | 대표 | [dev-pm](dev-pm.md) 개발PM (Cap) | Codex | 서비스PM, HJ가 직접 물을 때 | 서비스PM |
-| 서브 | [researcher](subagents/researcher.md) | Claude | 없음 | 서비스PM |
-| 서브 | [reviewer](subagents/reviewer.md) | Claude (다른 모델 권장) | 없음 | 서비스PM |
+| 서브 | [researcher](subagents/researcher.md) Jarvis | Claude | 없음 | 서비스PM |
+| 서브 | [business](subagents/business.md) Thanos | Claude | 없음 | 서비스PM |
+| 서브 | [challenger](subagents/challenger.md) Loki | Gemini·Antigravity (Claude 래퍼로 실행) | 없음 | 서비스PM |
+| 서브 | [reviewer](subagents/reviewer.md) Fury | Gemini·Antigravity (Claude 래퍼로 실행) | 없음 | 서비스PM |
+| 서브 | [editor](subagents/editor.md) Friday | Claude | 없음 | 서비스PM |
 | 서브 | [implementer](subagents/implementer.md) | Codex | 없음 | 개발PM |
 | 서브 | [qa](subagents/qa.md) | Codex | 없음 | 개발PM |
 | 서브 | [release](subagents/release.md) | Codex | 없음 | 개발PM |
 
 규칙:
 
+- 서비스PM의 서브에이전트에는 마블 테마 이름을 붙인다(2026-11-26 HJ 결정). 개발PM 내부 서브에이전트(implementer, qa, release)는 이름 없이 둔다. 파일의 `name`은 그대로 두고 `title`에 이름을 붙인다. 디스코드에서는 이름으로 부른다.
+- 채점(Fury)과 반론(Loki)은 작성자와 다른 회사 모델(Gemini)로 한다. Antigravity로 옮기는 방법은 개발PM이 정한다.
 - 대표만 서브에이전트를 부른다. 서브에이전트는 다른 서브에이전트를 부르지 않는다.
 - 서브에이전트는 받은 일만 하고 결과를 짧게 돌려준다. 결정은 대표가 한다.
 - 개발PM의 서브에이전트는 GitHub Issue 하나를 단위로 일한다. 같은 Issue를 두 서브에이전트가 동시에 잡지 않는다.
