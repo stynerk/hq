@@ -18,6 +18,12 @@ gates:
   - name: PRD v2 범위 승인
     due: 2026-10-26
     status: passed
+  - name: 개요 확정 (docs/product/OVERVIEW.md, 재개 첫 관문)
+    due: null
+    status: open
+  - name: 첫 화면 HJ 확인 (화면이 처음 동작하면 바로)
+    due: null
+    status: open
   - name: Blaze 요금제 전환과 예산 알림
     due: null
     status: open
@@ -32,8 +38,12 @@ gates:
 
 ## 목표와 성공 지표
 
-- 현재 제품 기준은 저장소 `docs/PRD_V2.md`(2단계 정리 후 `docs/product/PRD.md`).
-- 성공 지표는 아직 PRD v2에 숫자로 정해져 있지 않다. 재개할 때 서비스PM의 첫 작업이다.
+- 현재 제품 기준은 저장소 `docs/product/PRD.md`(PRD v2).
+- 성공 지표는 아직 숫자로 정해져 있지 않다. 재개 첫 관문인 개요(`docs/product/OVERVIEW.md`)에서 정한다.
+
+## 재개 (2026-11-26 HJ)
+
+HJ가 onemorestep 제출 후 재개를 정했다. 순서: ① 총괄이 에이전트 구성 확정(hq PR #26, HJ 확정) ② Tony가 개요 작성 — 배경·목적, 대상 한 사람, 목표 밸류, 성공 지표, 리소스, 죽는 전제 ③ 관문 재설정 후 남은 T Issue(#36, #37, #40, #41, #44, #47, #48) 우선순위를 정해 Cap에게 인계. 개요 관문 통과 전에는 `ready` Issue를 만들지 않는다.
 
 ## 이 프로젝트만의 규칙
 
@@ -54,6 +64,8 @@ gates:
 | 결정, 인수인계, 시행착오 | `docs/team/` |
 
 ## 구조 전환 상태
+
+완료(Issue #33~#35, PR #32 병합). 아래는 기록이다.
 
 2026-11-17 HJ 결정: 봇이 동작하도록 `active`로 바꾸고 표준 구조로 전환한다. 이번에는 구조 전환만 하고, 기획·개발 재개(성공 지표 정의 등)는 onemorestep 제출(11-25) 뒤 HJ가 정한다. Tony·Cap은 그 전까지 제품 작업을 시작하지 않는다.
 
