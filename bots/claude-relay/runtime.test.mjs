@@ -161,6 +161,8 @@ test('work sessions enable the Bash tool but preapprove only git and gh, and ign
  assert.ok(tools.includes('Bash'));assert.ok(!tools.some(t=>t.includes('(')),'--tools must hold tool names only');
  const allowed=args.slice(args.indexOf('--allowedTools')+1);
  assert.ok(allowed.includes('Bash(git *)')&&allowed.includes('Bash(gh *)'));assert.ok(!allowed.includes('Bash'),'bare Bash must not be preapproved');
+ const pm2=allowed.filter(a=>a.includes('pm2'));assert.deepEqual(pm2,['Bash(pm2 ls)'],'only the exact pm2 ls rule; no jlist/logs/restart/wildcard');
+ assert.ok(!claudeArgs('/tmp/p',{consult:true}).some(a=>a.includes('pm2')),'consult sessions get no pm2');
  assert.ok(args.includes('--strict-mcp-config'));
  assert.ok(claudeArgs('/tmp/p',{consult:true}).includes('--strict-mcp-config'));
 });
