@@ -35,6 +35,12 @@ const fakeRclone = (responses = {}) => {
 };
 const realGit = args => exec('git', args).then(r => r.stdout);
 
+function readTempRoot(t) {
+  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'hq-drive-read-test-'));
+  t.after(() => fs.rmSync(tmpRoot, {recursive: true, force: true}));
+  return tmpRoot;
+}
+
 test('parseArgs accepts send and read only', () => {
   assert.deepEqual(parseArgs(['send', 'demo', 'a.md', 'b.csv']), {cmd: 'send', slug: 'demo', files: ['a.md', 'b.csv']});
   assert.deepEqual(parseArgs(['read']), {cmd: 'read', target: ''});
@@ -103,22 +109,74 @@ test('send uploads nothing when any file is rejected', async t => {
   assert.equal(rclone.calls.length, 0);
 });
 
-test('read lists a folder and downloads a file outside the repo as md/csv', async t => {
-  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'hq-drive-read-test-'));
-  t.after(() => fs.rmSync(tmpRoot, {recursive: true, force: true}));
+test('read lists visible files and rejects unsafe paths', async () => {
   const list = fakeRclone({'lsjson': JSON.stringify([{Path: 'PLAN.md', ModTime: '2026-11-27T01:00:00Z', Size: 10}])});
   assert.match(await read({target: '', rclone: list, env: {}}), /PLAN\.md \| 2026-11-27/);
   assert.ok(list.calls[0].includes('gdrive-ro:'));
-
-  const file = fakeRclone({'lsjson:stat': JSON.stringify({IsDir: false}), 'copyto': args => { fs.writeFileSync(args[2], '# 고친 기획'); return ''; }});
-  const out = await read({target: 'demo/docs/product/PLAN.md', rclone: file, env: {}, tmpRoot});
-  const copy = file.calls.find(a => a[0] === 'copyto');
-  assert.equal(copy[1], 'gdrive-ro:demo/docs/product/PLAN.md');
-  assert.ok(copy[2].startsWith(tmpRoot));
-  assert.ok(copy.includes('--max-size') && copy.includes('--drive-export-formats') && !copy.includes('--drive-import-formats'));
-  assert.match(out, /신뢰하지 않는 데이터/);
-
   await assert.rejects(read({target: '../secret', rclone: fakeRclone(), env: {}}), /올바르지 않습니다/);
+});
+
+test('read lists a folder at the depth limit when deeper files are outside the listing', async () => {
+  const listing = fakeRclone({'lsjson': JSON.stringify([
+    {Path: 'hq', IsDir: true},
+    {Path: 'hq/bots', IsDir: true},
+    {Path: 'hq/bots/oauth-site', IsDir: true},
+  ])});
+  const out = await read({rclone: listing, env: {}});
+  assert.deepEqual(listing.calls, [['lsjson', '-R', '--max-depth', '3', 'gdrive-ro:', '--drive-export-formats', 'md,csv']]);
+  assert.match(out, /^hq\/bots\/oauth-site\/$/m);
+  assert.doesNotMatch(out, /파일 없음/);
+  assert.match(await read({rclone: fakeRclone({lsjson: '[]'}), env: {}}), /파일 없음/);
+});
+
+test('read exports a Google document with unknown size and no copyto filters', async t => {
+  const tmpRoot = readTempRoot(t);
+  const file = fakeRclone({
+    'lsjson:stat': JSON.stringify({IsDir: false, Size: -1}),
+    copyto: args => fs.writeFileSync(args[2], '# OAuth 사이트'),
+  });
+  const target = 'hq/bots/oauth-site/README.md';
+  const out = await read({target, rclone: file, env: {}, tmpRoot});
+  const local = file.calls[1][2];
+  assert.deepEqual(file.calls, [
+    ['lsjson', '--stat', `gdrive-ro:${target}`, '--drive-export-formats', 'md,csv'],
+    ['copyto', `gdrive-ro:${target}`, local, '--drive-export-formats', 'md,csv'],
+  ]);
+  assert.equal(path.dirname(path.dirname(local)), tmpRoot);
+  assert.equal(path.basename(local), 'README.md');
+  assert.equal(fs.readFileSync(local, 'utf8'), '# OAuth 사이트');
+  assert.match(out, /신뢰하지 않는 데이터/);
+});
+
+test('read rejects a known oversized file before starting a copy', async t => {
+  const tmpRoot = readTempRoot(t);
+  const file = fakeRclone({'lsjson:stat': JSON.stringify({IsDir: false, Size: 20 * 1024 * 1024 + 1})});
+  await assert.rejects(read({target: 'large.pdf', rclone: file, env: {}, tmpRoot}), /20 MiB.*large\.pdf/);
+  assert.equal(file.calls.length, 1);
+  assert.deepEqual(fs.readdirSync(tmpRoot), []);
+});
+
+test('read removes temporary files after an oversized export or failed copy', async t => {
+  const tmpRoot = readTempRoot(t);
+  const metadata = JSON.stringify({IsDir: false, Size: -1});
+  const oversized = fakeRclone({
+    'lsjson:stat': metadata,
+    copyto: args => {
+      fs.writeFileSync(args[2], '');
+      fs.truncateSync(args[2], 20 * 1024 * 1024 + 1);
+    },
+  });
+  const failed = fakeRclone({
+    'lsjson:stat': metadata,
+    copyto: args => {
+      fs.writeFileSync(args[2], 'partial');
+      throw new Error('copy failed');
+    },
+  });
+  await assert.rejects(read({target: 'large.md', rclone: oversized, env: {}, tmpRoot}), /20 MiB.*large\.md/);
+  assert.deepEqual(fs.readdirSync(tmpRoot), []);
+  await assert.rejects(read({target: 'failed.md', rclone: failed, env: {}, tmpRoot}), /copy failed/);
+  assert.deepEqual(fs.readdirSync(tmpRoot), []);
 });
 
 test('docLink builds Docs, Sheets and plain file links', () => {
