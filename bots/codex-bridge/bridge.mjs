@@ -4,20 +4,21 @@ import path from 'node:path';
 import http from 'node:http';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { execFile } from 'node:child_process';
-import { chunks } from './rpc.mjs';
+import { AppServer, chunks, codexCommand } from './rpc.mjs';
+import { configuredPath, dpapi, isMac, macDiscordToken, readMacEnv } from '../shared/host-settings.mjs';
 import {Registry, locate} from '../shared/registry.mjs';
 import {classify, ExchangeCounter, refreshProjectRoute} from '../shared/routing.mjs';
 import {LaneJobs} from '../shared/lane-jobs.mjs';
 import {executionContext, trustedAttachmentSource, canRequestApproval, permissionsResponse} from './policy.mjs';
-import { ProfileServers, selectProfile, profileSessionKey, isUsageLimit } from './profiles.mjs';
+import { configureRouting, ProfileServers, selectProfile, profileSessionKey, isUsageLimit } from './profiles.mjs';
 import { openThread } from './sessions.mjs';
 import { startWatchdog, discordReady } from '../shared/watchdog.mjs';
 import { AttachmentStore, attachmentList } from './attachments.mjs';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
-const privateDir = process.env.BRIDGE_PRIVATE_DIR || 'C:/Users/styne/orca/discord-codex/private';
-const hqRoot = process.env.HQ_ROOT || 'C:/Users/styne/orca/hq';
+const settings = isMac ? readMacEnv() : {};
+const privateDir = configuredPath('BRIDGE_PRIVATE_DIR', settings) || (isMac ? path.join(root, 'private') : 'C:/Users/styne/orca/discord-codex/private');
+const hqRoot = configuredPath('HQ_ROOT', settings) || (isMac ? path.resolve(root, '../..') : 'C:/Users/styne/orca/hq');
 const registry = new Registry(hqRoot);
 const exchanges = new ExchangeCounter();
 fs.mkdirSync(privateDir, {recursive: true});
@@ -26,36 +27,26 @@ const statePath = path.join(privateDir, 'state.json');
 const workspace = hqRoot;
 const readJSON = (p, fallback) => { try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch (e) { if (e.code === 'ENOENT') return fallback; throw e; } };
 function save(p, value) { fs.writeFileSync(p + '.tmp', JSON.stringify(value, null, 2)); fs.renameSync(p + '.tmp', p); }
-function dpapi(value, decrypt = false) {
-  const script = decrypt
-    ? '$s=[Console]::In.ReadToEnd() | ConvertTo-SecureString; $b=[Runtime.InteropServices.Marshal]::SecureStringToBSTR($s); try {[Console]::Out.Write([Runtime.InteropServices.Marshal]::PtrToStringBSTR($b))} finally {[Runtime.InteropServices.Marshal]::ZeroFreeBSTR($b)}'
-    : '$s=ConvertTo-SecureString ([Console]::In.ReadToEnd()) -AsPlainText -Force; [Console]::Out.Write(($s | ConvertFrom-SecureString))';
-  return new Promise((resolve, reject) => {
-    const p = execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {windowsHide: true}, (err, out) => err ? reject(new Error('Windows credential encryption failed')) : resolve(out.trim()));
-    p.stdin.end(value);
-  });
-}
-
+const check = process.argv.includes('--check');
+const envToken = isMac && !check ? macDiscordToken(settings, 'CODEX_DISCORD_BOT_TOKEN') : null;
 const routingPath = path.join(privateDir, 'routing.json');
-if (!fs.existsSync(routingPath)) save(routingPath, {
-  businessOnly: true,
-  managedAccountsRoot: path.join(process.env.APPDATA, 'orca', 'codex-accounts'),
-  profiles: {
-    business: {home: null, workspace},
-  },
-  channels: {},
-});
-const rpc = new ProfileServers(routingPath);
+const savedRouting = readJSON(routingPath, null);
+const routing = configureRouting(savedRouting, {accountsRoot: configuredPath('CODEX_ACCOUNTS_ROOT', settings), workspace});
+if (routing !== savedRouting) save(routingPath, routing);
+const executable = configuredPath('CODEX_EXECUTABLE', settings);
+const command = codexCommand({env: {...process.env, CODEX_EXECUTABLE: executable}});
+const rpc = new ProfileServers(routingPath, home => new AppServer(command, {env: {CODEX_HOME: home}}));
 await rpc.initialize();
 const account = await rpc.request('account/read', {refreshToken: false});
-if (!account.account) throw new Error('Codex 로그인이 필요합니다: codex.cmd login');
-if (process.argv.includes('--check')) {
+if (!account.account) throw new Error(`Codex 로그인이 필요합니다: ${isMac ? 'codex' : 'codex.cmd'} login`);
+if (check) {
   const t = await rpc.request('thread/start', {cwd: workspace, sandbox: 'workspace-write', approvalPolicy: 'on-request', ephemeral: true});
   console.log(JSON.stringify({appServer: 'ok', accountType: account.account.type, thread: !!t.thread.id, workspace}));
   rpc.close(); process.exit(0);
 }
 
 let config = readJSON(configPath, null), client = null;
+if (isMac) config = {attachments: config?.attachments, botId: registry.get().codexBotId, ownerId: registry.get().ownerId};
 const attachmentStore = new AttachmentStore(path.join(privateDir, 'attachments'), config?.attachments);
 let state = readJSON(statePath, {threadId: null});
 state.sessions ??= {};
@@ -144,12 +135,12 @@ async function handleNotification({method, params: p, profile}) {
 async function startDiscord() {
   if (client) { client.destroy(); client = null; }
   if (config.botId !== registry.get().codexBotId || config.ownerId !== registry.get().ownerId) throw new Error('기존 봇 설정과 레지스트리 ID가 다릅니다. 설정 페이지를 확인하세요.');
-  const token = await dpapi(config.tokenEncrypted, true);
+  const token = isMac ? envToken : await dpapi(config.tokenEncrypted, true);
   const bot = new Client({intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.DirectMessages, GatewayIntentBits.MessageContent], partials: [Partials.Channel]});
   bot.on('error', () => { lastError = 'Discord 연결 오류'; });
   bot.on('shardDisconnect', () => { runtimeStatus = 'Discord 재연결 중'; });
   bot.on('shardReady', () => { runtimeStatus = 'Discord 연결됨'; });
-  bot.once('clientReady', () => { runtimeStatus = 'Discord 연결됨'; if (bot.user.id !== registry.get().codexBotId) { console.error('Codex bot identity mismatch'); bot.destroy(); process.exitCode = 1; } else console.log('Discord bot connected; registry routing enabled.'); });
+  bot.once('clientReady', () => { runtimeStatus = 'Discord 연결됨'; if (bot.user.id !== registry.get().codexBotId) { console.error('Codex bot identity mismatch'); bot.destroy(); process.exitCode = 1; if (isMac) setImmediate(shutdown); } else console.log('Discord bot connected; registry routing enabled.'); });
   bot.on('messageCreate', message => { void handleMessage(message).catch(async () => {
     lastError = '요청 처리 실패 — !status로 연결 상태를 확인하세요.';
     await send(message.channel, lastError).catch(() => {});
@@ -277,9 +268,14 @@ const server = http.createServer(async (req, res) => {
   configuring = true;
   try {
     let body = ''; for await (const chunk of req) { body += chunk; if (body.length > 8192) throw new Error('입력이 너무 깁니다.'); }
-    const {token, ownerId} = JSON.parse(body);
+    let submitted;
+    try { submitted = JSON.parse(body); } catch { throw new Error('설정 요청을 읽을 수 없습니다.'); }
+    const {token, ownerId} = submitted || {};
     if (typeof token !== 'string' || !token.trim() || !/^\d{17,20}$/.test(ownerId)) throw new Error('봇 토큰과 본인 사용자 ID를 확인하세요.');
-    const r = await fetch('https://discord.com/api/v10/users/@me', {headers: {Authorization: 'Bot ' + token.trim()}, signal: AbortSignal.timeout(15000)});
+    let r;
+    try {
+      r = await fetch('https://discord.com/api/v10/users/@me', {headers: {Authorization: 'Bot ' + token.trim()}, signal: AbortSignal.timeout(15000)});
+    } catch { throw new Error('Discord에 접속할 수 없습니다. 연결과 토큰 형식을 확인하세요.'); }
     if (!r.ok) throw new Error('Discord가 토큰을 거절했습니다. 새 봇 토큰을 확인하세요.');
     const bot = await r.json();
     const previous = config;
@@ -293,12 +289,21 @@ const server = http.createServer(async (req, res) => {
   finally { configuring = false; }
 });
 server.on('error', () => { console.error('설정 포트 38471을 사용할 수 없습니다. 기존 실행을 확인하세요.'); rpc.close(); process.exit(1); });
-server.listen(38471, '127.0.0.1', () => {
+if (process.platform === 'win32') server.listen(38471, '127.0.0.1', () => {
   const url = `http://127.0.0.1:38471/?key=${setupKey}`;
   fs.writeFileSync(path.join(privateDir, 'setup-url.txt'), url);
   console.log('Local setup ready on 127.0.0.1:38471');
 });
-if (config) { try { await startDiscord(); } catch (e) { lastError = e.message; } }
+if (config) {
+  try { await startDiscord(); }
+  catch (e) {
+    lastError = e.message;
+    if (isMac) {
+      rpc.close();
+      throw new Error('Discord 연결을 시작할 수 없습니다. 토큰, 연결과 레지스트리 설정을 확인하세요.');
+    }
+  }
+}
 // 디스코드 설정이 있을 때만 연결을 감시한다. 끊긴 채 살아 있으면 끝내고 run.ps1이 다시 띄운다.
 if (config) startWatchdog({isReady: () => discordReady(client), exit: () => { process.exitCode = 1; shutdown(); }});
 function shutdown() { clearApprovals(); for (const lane of jobs.lanes.values()) { if (lane.active?.typing) clearInterval(lane.active.typing); lane.queue.length = 0; } client?.destroy(); rpc.close(); server.close(); process.exit(process.exitCode || 0); }

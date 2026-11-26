@@ -66,3 +66,45 @@ Disable-ScheduledTask -TaskName 'HQ Claude Relay'
 ```
 
 새 프로세스가 종료된 것을 확인한 뒤 이전 실행 방식으로 복귀한다. 토큰을 공유하는 프로세스를 동시에 재시작하지 않는다. 새 경로의 로그·세션과 기존 `private`는 보존한다. 자동 실행을 없애려면 작업 스케줄러의 위 두 작업만 삭제한다.
+
+# macOS Mac mini에서 PM2로 실행
+
+Node.js 22 이상, PM2, Codex CLI와 Claude CLI를 봇을 실행할 macOS 사용자로 준비한다. 두 CLI에 로그인하고, 같은 토큰을 쓰는 다른 호스트의 봇은 테스트 전에 중지하거나 별도 테스트 토큰과 레지스트리를 사용한다. 레지스트리의 owner 및 각 봇 ID가 사용할 Discord 계정과 일치해야 한다.
+
+프로젝트의 macOS 경로가 이미 등록되어 있으면 해당 경로를 쓴다. 기존 Windows 경로는 `HQ_ROOT`의 상위 폴더에서 같은 체크아웃 이름으로 찾는다. 예를 들어 `C:/Users/example/orca/OurAdventure`는 macOS에서 HQ 옆의 `OurAdventure`를 사용한다. hq 프로젝트는 `HQ_ROOT` 자체를 사용한다.
+
+저장소 루트에서 처음 한 번 실행한다.
+
+```sh
+npm --prefix bots ci
+if [ ! -e bots/.env ]; then
+  install -m 600 bots/.env.example bots/.env
+fi
+chmod 600 bots/.env
+```
+
+`bots/.env`를 편집해 두 봇의 별도 토큰과 경로를 설정한다. 각 봇은 시작 시 자기 저장소의 `bots/.env`를 직접 읽으므로 PM2 실행 위치나 셸의 `source`에 의존하지 않는다. 파일은 봇 실행 사용자가 소유한 권한 `0600` 일반 파일이어야 한다. 토큰은 파일에서 각 봇으로만 읽으며 PM2의 앱 환경이나 CLI 자식 프로세스의 환경으로 내보내지 않는다. 파일 변경은 `pm2 restart`로 반영한다.
+
+`CODEX_EXECUTABLE`과 `CLAUDE_BIN`을 비워 두면 PM2 프로세스가 상속한 `PATH`에서 각각 `codex`, `claude`를 찾는다. 부팅 환경에 CLI 디렉터리가 없다면 해당 실행 파일의 절대 경로를 `bots/.env`에 지정한다. 공백이 있는 경로는 예시처럼 따옴표로 감싼다. 경로 설정은 프로세스 환경 변수가 `bots/.env` 값보다 우선한다.
+
+Codex는 기본적으로 `~/Library/Application Support/orca/codex-accounts`에서 Business 계정을 탐색한다. `CODEX_ACCOUNTS_ROOT`를 설정하면 저장된 `routing.json`의 `managedAccountsRoot`보다 우선한다. 계정 경로가 다른 Windows의 `routing.json`은 복사하지 않는다. 새 파일 첫 시작에는 Business 계정을 자동으로 고르고, 한도 오류가 나면 같은 루트에서 탐색한 다음 Business 계정을 사용해 `profiles.business.home`을 갱신한다. 계정 순서를 직접 관리하려면 `profiles.business.homes`에 macOS 계정 홈의 절대 경로를 순서대로 적는다. 명시적으로 설정한 프로필의 계정 홈과 목록이 자동 탐색보다 우선한다.
+
+```sh
+pm2 start bots/ecosystem.config.cjs
+pm2 status
+pm2 logs hq-codex-bridge --lines 20 --nostream
+pm2 logs hq-claude-relay --lines 20 --nostream
+```
+
+검증할 때 두 프로세스가 `online`이고 각 Discord 연결 메시지가 찍혔는지 확인한다. 등록된 hq 채널에서 각 봇을 멘션해 서로 다른 고정 문구로 답하도록 요청하고 실제 응답을 확인한다. Codex 응답은 PM2 환경의 `codex`, Tony 응답은 `claude` 실행을 각각 확인한다. 별도 테스트 스레드에서 Tony 응답을 생성하던 중 `!stop`으로 중지한 뒤 다음 요청이 완료되는지도 확인한다. PR에는 macOS·Node.js·PM2·두 CLI 버전, 두 프로세스의 시작 및 Discord 응답 결과, Windows 실행 결과를 기록한다. 토큰과 인증 파일 내용은 제외한다.
+
+운영 전환 시 실행 중인 별도 인스턴스가 없는 상태에서 `pm2 save`를 실행한다. 부팅 시 자동 시작이 필요하면 같은 사용자로 `pm2 startup launchd`를 실행하고 PM2가 출력한 설정 절차를 적용한다. 복귀할 때는 `pm2 stop hq-codex-bridge hq-claude-relay`로 중지한 뒤 이전 호스트를 재시작한다. 설정과 세션은 보존한다.
+
+## 로컬 QA
+
+저장소 루트에서 `node --test bots/codex-bridge/`가 `MODULE_NOT_FOUND`를 내는 Node.js 버전에서는 테스트 파일을 지정한다. 이 명령은 브리지의 `*.test.mjs`와 기존 `test.mjs`를 실행한다.
+
+```sh
+node --test "bots/codex-bridge/*.test.mjs" bots/codex-bridge/test.mjs
+npm --prefix bots test
+```

@@ -1,5 +1,7 @@
 import {EventEmitter} from 'node:events';
 import fs from 'node:fs';
+import os from 'node:os';
+import {windowsAppData} from '../shared/host-settings.mjs';
 import path from 'node:path';
 import {AppServer, codexCommand} from './rpc.mjs';
 
@@ -17,35 +19,57 @@ export function isUsageLimit(e) {
   return info === 'usageLimitExceeded' || /usage limit/i.test(String(e?.message ?? e ?? ''));
 }
 
+export function defaultAccountsRoot({platform = process.platform, env = process.env, home = os.homedir()} = {}) {
+  if (platform === 'win32') return path.win32.join(windowsAppData(env, home), 'orca', 'codex-accounts');
+  if (platform === 'darwin') return path.posix.join(home, 'Library', 'Application Support', 'orca', 'codex-accounts');
+  return path.join(home, '.codex-accounts');
+}
+
+export function configureRouting(routing, {accountsRoot, workspace}) {
+  const root = accountsRoot || routing?.managedAccountsRoot || defaultAccountsRoot();
+  if (!routing) {
+    return {
+      businessOnly: true,
+      managedAccountsRoot: root,
+      profiles: {business: {home: null, workspace}},
+      channels: {},
+    };
+  }
+  if (routing.managedAccountsRoot === root) return routing;
+  const updated = {...routing, managedAccountsRoot: root};
+  const business = routing.profiles?.business;
+  if (business?.discoveredHome && business.home === business.discoveredHome && !business.homes?.includes(business.home)) {
+    const {discoveredHome, ...profile} = business;
+    updated.profiles = {...routing.profiles, business: {...profile, home: null}};
+  }
+  return updated;
+}
+
+function* businessHomes(root, depth = 0) {
+  if (!root || depth > 4 || !fs.existsSync(root)) return;
+  const auth = path.join(root, 'auth.json');
+  if (fs.existsSync(auth)) {
+    try {
+      const cached = JSON.parse(fs.readFileSync(auth, 'utf8'));
+      const claims = JSON.parse(Buffer.from(cached.tokens.id_token.split('.')[1], 'base64url').toString('utf8'));
+      // account/read validates each candidate's real workspace before any prompt is sent.
+      if (isBusinessPlan(claims['https://api.openai.com/auth']?.chatgpt_plan_type)) yield root;
+    } catch {}
+  }
+  for (const entry of fs.readdirSync(root, {withFileTypes: true})) {
+    if (entry.isDirectory() && !entry.isSymbolicLink()) yield* businessHomes(path.join(root, entry.name), depth + 1);
+  }
+}
+
 export function discoverBusinessHome(root) {
-  if (!root || !fs.existsSync(root)) return null;
-  const visit = (dir, depth) => {
-    if (depth > 4) return null;
-    const auth = path.join(dir, 'auth.json');
-    if (fs.existsSync(auth)) {
-      try {
-        const cached = JSON.parse(fs.readFileSync(auth, 'utf8'));
-        const claims = JSON.parse(Buffer.from(cached.tokens.id_token.split('.')[1], 'base64url').toString('utf8'));
-        // This hint only selects a candidate home. account/read below validates
-        // the actual authenticated workspace before any prompt is submitted.
-        if (isBusinessPlan(claims['https://api.openai.com/auth']?.chatgpt_plan_type)) return dir;
-      } catch {}
-    }
-    for (const entry of fs.readdirSync(dir, {withFileTypes: true})) {
-      if (entry.isDirectory() && !entry.isSymbolicLink()) {
-        const found = visit(path.join(dir, entry.name), depth + 1); if (found) return found;
-      }
-    }
-    return null;
-  };
-  return visit(root, 0);
+  return businessHomes(root).next().value ?? null;
 }
 
 // Each profile owns its App Server and credentials. Thread ownership is explicit;
 // never fall back to a different account when login or workspace validation fails.
 export class ProfileServers extends EventEmitter {
-  constructor(routingPath, factory = (home) => new AppServer(codexCommand(), {env: {CODEX_HOME: home}})) {
-    super(); this.routingPath = routingPath; this.factory = factory;
+  constructor(routingPath, factory = (home) => new AppServer(codexCommand(), {env: {CODEX_HOME: home}}), {discoverFailover = process.platform === 'darwin'} = {}) {
+    super(); this.routingPath = routingPath; this.factory = factory; this.discoverFailover = discoverFailover;
     this.servers = new Map(); this.threads = new Map(); this.accounts = {};
   }
   routing() { return JSON.parse(fs.readFileSync(this.routingPath, 'utf8')); }
@@ -56,9 +80,11 @@ export class ProfileServers extends EventEmitter {
     const routing = this.routing();
     const settings = routing.profiles[profile];
     if (profile === 'business' && !settings?.home) {
-      const home = discoverBusinessHome(routing.managedAccountsRoot);
-      if (home) {
+      const configured = this.discoverFailover && settings?.homes?.find(Boolean);
+      const home = configured || discoverBusinessHome(routing.managedAccountsRoot);
+      if (home && settings) {
         settings.home = home;
+        if (this.discoverFailover && !configured) settings.discoveredHome = home;
         fs.writeFileSync(this.routingPath + '.tmp', JSON.stringify(routing, null, 2));
         fs.renameSync(this.routingPath + '.tmp', this.routingPath);
       }
@@ -86,11 +112,15 @@ export class ProfileServers extends EventEmitter {
   // business가 아닌 계정으로는 넘어가지 않는다. 목록이 2개 미만이면 null.
   rotateBusiness() {
     const routing = this.routing(); const b = routing.profiles?.business;
-    const homes = (b?.homes || []).filter(Boolean);
-    if (homes.length < 2) return null;
+    const homes = b?.homes
+      ? b.homes.filter(Boolean)
+      : this.discoverFailover ? [...businessHomes(routing.managedAccountsRoot)] : [];
+    if (!b || homes.length < 2) return null;
     const next = homes[(homes.indexOf(b.home) + 1) % homes.length];
     if (!next || next === b.home) return null;
     b.home = next;
+    if (this.discoverFailover && !b.homes) b.discoveredHome = next;
+    else delete b.discoveredHome;
     fs.writeFileSync(this.routingPath + '.tmp', JSON.stringify(routing, null, 2));
     fs.renameSync(this.routingPath + '.tmp', this.routingPath);
     const pending = this.servers.get('business'); this.servers.delete('business');

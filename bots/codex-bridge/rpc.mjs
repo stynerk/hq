@@ -3,13 +3,15 @@ import { createInterface } from 'node:readline';
 import { EventEmitter } from 'node:events';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
+import {windowsAppData} from '../shared/host-settings.mjs';
 
-export function codexCommand() {
-  if (process.env.CODEX_EXECUTABLE) return [process.env.CODEX_EXECUTABLE, []];
-  const root = path.join(process.env.APPDATA, 'npm/node_modules/@openai/codex');
-  const native = path.join(root, 'node_modules/@openai/codex-win32-x64/vendor/x86_64-pc-windows-msvc/bin/codex.exe');
-  if (existsSync(native)) return [native, []];
-  return [process.execPath, [path.join(root, 'bin/codex.js')]];
+export function codexCommand({platform = process.platform, env = process.env, exists = existsSync} = {}) {
+  if (env.CODEX_EXECUTABLE) return [env.CODEX_EXECUTABLE, []];
+  if (platform !== 'win32') return ['codex', []];
+  const root = path.win32.join(windowsAppData(env), 'npm/node_modules/@openai/codex');
+  const native = path.win32.join(root, 'node_modules/@openai/codex-win32-x64/vendor/x86_64-pc-windows-msvc/bin/codex.exe');
+  if (exists(native)) return [native, []];
+  return [process.execPath, [path.win32.join(root, 'bin/codex.js')]];
 }
 
 export class AppServer extends EventEmitter {

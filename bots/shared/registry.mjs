@@ -34,7 +34,17 @@ function readDir(dir) {
   catch (e) { if (e.code === 'ENOENT') return []; throw e; }
 }
 
-export function loadRegistry(hqRoot) {
+function projectPath(slug, configured, hqRoot, platform) {
+  if (platform !== 'darwin') return configured || null;
+  if (slug === 'hq') return hqRoot;
+  // Existing Windows registrations represent checkouts beside HQ on the Mac.
+  if (configured && path.win32.isAbsolute(configured) && !path.posix.isAbsolute(configured)) {
+    return path.join(path.dirname(hqRoot), path.win32.basename(configured));
+  }
+  return configured || null;
+}
+
+export function loadRegistry(hqRoot, {platform = process.platform} = {}) {
   const discordFile = path.join(hqRoot, 'config', 'discord.md');
   const discord = splitFrontmatter(fs.readFileSync(discordFile, 'utf8')).data;
   const projects = [];
@@ -53,7 +63,7 @@ export function loadRegistry(hqRoot) {
     const p = {
       schedules, scheduleErrors, idle,
       slug: data.slug, title: data.title || data.slug, status: data.status || 'paused',
-      repo: data.repo || null, localPath: data.local_path || null,
+      repo: data.repo || null, localPath: projectPath(data.slug, data.local_path, hqRoot, platform),
       channelId: str(channelConfig?.channel_id), devThreadId: str(channelConfig?.dev_thread_id),
       servicePm: data.agents?.service_pm || {name: 'Tony'}, devPm: data.agents?.dev_pm || {name: 'Cap'},
       // Claude 쪽 대표의 역할 파일. 보통 service-pm, hq 프로젝트는 hq-lead(총괄).

@@ -7,15 +7,12 @@ import {botIdentityInstructions} from '../shared/bot-context.mjs';
 const exec = promisify(execFile);
 export function saveJSON(file, value) { fs.mkdirSync(path.dirname(file), {recursive:true}); fs.writeFileSync(file+'.tmp',JSON.stringify(value,null,2)); fs.renameSync(file+'.tmp',file); }
 export function readJSON(file, fallback) { try {return JSON.parse(fs.readFileSync(file,'utf8'));} catch(e) {if(e.code==='ENOENT') return fallback; throw e;} }
-export async function dpapi(value, decrypt=false) {
-  const code = decrypt ? '$s=[Console]::In.ReadToEnd() | ConvertTo-SecureString; $b=[Runtime.InteropServices.Marshal]::SecureStringToBSTR($s); try {[Console]::Out.Write([Runtime.InteropServices.Marshal]::PtrToStringBSTR($b))} finally {[Runtime.InteropServices.Marshal]::ZeroFreeBSTR($b)}' : '$s=ConvertTo-SecureString ([Console]::In.ReadToEnd()) -AsPlainText -Force; [Console]::Out.Write(($s | ConvertFrom-SecureString))';
-  return new Promise((resolve,reject)=>{ const p=execFile('powershell.exe',['-NoProfile','-NonInteractive','-Command',code],{windowsHide:true},(err,out)=>err?reject(new Error('Windows credential encryption failed')):resolve(out.trim())); p.stdin.end(value); });
-}
 export async function readEncryptedToken() {
+  if (process.platform !== 'win32') throw new Error('DPAPI is only available on Windows');
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'hq-token-'));const file=path.join(dir,'encrypted.txt');
   try {await new Promise((resolve,reject)=>{
     const p=spawn('powershell.exe',['-NoProfile','-Command',"$s=Read-Host 'Discord bot token' -AsSecureString; [IO.File]::WriteAllText($env:HQ_TOKEN_RESULT, ($s | ConvertFrom-SecureString))"],{stdio:'inherit',env:{...process.env,HQ_TOKEN_RESULT:file},windowsHide:false,shell:false});
-    p.on('error',reject);p.on('close',code=>code===0?resolve():reject(new Error('봇 토큰 입력 실패')));
+    p.on('error',()=>reject(new Error('봇 토큰 입력 실패')));p.on('close',code=>code===0?resolve():reject(new Error('봇 토큰 입력 실패')));
   });return fs.readFileSync(file,'utf8').trim();}finally{fs.rmSync(dir,{recursive:true,force:true});}
 }
 export function importedToken(file) { try { const text=fs.readFileSync(file,'utf8'); return /^\s*(?:export\s+)?DISCORD_BOT_TOKEN\s*=\s*["']?([^\r\n"']+)/m.exec(text)?.[1]?.trim() || null; } catch(e){if(e.code==='ENOENT') return null;throw e;} }
@@ -82,13 +79,21 @@ export function claudeCommand({platform=process.platform, env=process.env, exist
   }
   throw new Error('Claude 실행 파일을 찾을 수 없습니다. CLAUDE_BIN에 claude.exe 또는 Claude CLI cli.js의 전체 경로를 지정하세요.');
 }
-export function runClaude({cwd,prompt,system,sessionId,consult=false,signal,timeoutMs=20*60*1000,spawnFn=spawn}){
+export function runClaude({cwd,prompt,system,sessionId,consult=false,signal,timeoutMs=20*60*1000,spawnFn=spawn,resolveCommand=claudeCommand}){
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'hq-claude-'));const promptFile=path.join(dir,'system.txt');fs.writeFileSync(promptFile,system);
   return new Promise((resolve,reject)=>{
     let child;let output='';let error='';let done=false;let timer;let killTimer;let aborted=false;let closed=false;let killComplete=false;
     const cleanup=()=>{clearTimeout(timer);clearTimeout(killTimer);signal?.removeEventListener('abort',abort);fs.rmSync(dir,{recursive:true,force:true});};
     const finish=(e,result)=>{if(done)return;done=true;cleanup();e?reject(e):resolve(result);};
-    const stopped=()=>{if(closed&&killComplete)finish(new Error('작업이 중지되었습니다.'));};
+    const signalGroup = signal => {
+      try { process.kill(-child.pid, signal); return true; }
+      catch (error) { if (error.code === 'ESRCH') return false; throw error; }
+    };
+    const stopped=()=>{
+      if (closed && (killComplete || (process.platform !== 'win32' && !signalGroup(0)))) {
+        finish(new Error('작업이 중지되었습니다.'));
+      }
+    };
     const abort=()=>{
       if(aborted||done)return;aborted=true;
       if(!child?.pid){finish(new Error('작업이 중지되었습니다.'));return;}
@@ -99,12 +104,21 @@ export function runClaude({cwd,prompt,system,sessionId,consult=false,signal,time
           else killTimer=setTimeout(kill,1000);
         });kill();
       }else{
-        child.kill('SIGTERM');killComplete=true;
-        killTimer=setTimeout(()=>{if(!closed)child.kill('SIGKILL');},3000);
+        // A detached POSIX CLI leads its own group, including shell/tool descendants.
+        if (signalGroup('SIGTERM')) {
+          killTimer=setTimeout(()=>{signalGroup('SIGKILL');killComplete=true;stopped();},3000);
+        } else {
+          killComplete=true;stopped();
+        }
       }
     };
     if(signal?.aborted)return abort();
-    try { const launcher=claudeCommand(); child=spawnFn(launcher.command,[...launcher.prefix,...claudeArgs(promptFile,{sessionId,consult})],{cwd,windowsHide:true,stdio:['pipe','pipe','pipe'],shell:false}); }
+    try {
+      const launcher=resolveCommand();
+      child=spawnFn(launcher.command,[...launcher.prefix,...claudeArgs(promptFile,{sessionId,consult})],{
+        cwd,windowsHide:true,stdio:['pipe','pipe','pipe'],shell:false,detached:process.platform !== 'win32',
+      });
+    }
     catch(e){finish(e);return;}
     signal?.addEventListener('abort',abort,{once:true});timer=setTimeout(abort,timeoutMs);
     child.stdout.on('data',b=>{output+=b.toString();if(output.length>8*1024*1024)abort();});child.stderr.on('data',b=>{error=(error+b.toString()).slice(-4000);});
