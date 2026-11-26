@@ -51,7 +51,9 @@ export async function serviceWorkspace(project,{execFn=exec}={}){
   try {await execFn('git',['-C',repo,'fetch','--prune','origin']);}
   catch {throw new Error('서비스 작업 트리 최신화 실패: origin/main fetch의 네트워크·Git 인증을 확인하세요. 기존 작업은 보존했습니다.');}
   if(!fs.existsSync(cwd)){await execFn('git',['-C',repo,'worktree','add','-b','service/'+project.slug,cwd,'origin/main']);}
-  const {stdout}=await execFn('git',['-C',cwd,'rev-parse','--show-toplevel']);if(path.resolve(stdout.trim()).toLowerCase()!==path.resolve(cwd).toLowerCase())throw new Error('서비스 작업 트리 검증 실패');
+  // Compare real paths: macOS tmpdir /var is a symlink to /private/var, and git reports the resolved path. Lowercase stays for Windows.
+  const real=p=>{try{return fs.realpathSync.native(p);}catch{return path.resolve(p);}};
+  const {stdout}=await execFn('git',['-C',cwd,'rev-parse','--show-toplevel']);if(real(stdout.trim()).toLowerCase()!==real(cwd).toLowerCase())throw new Error('서비스 작업 트리 검증 실패');
   const recovery='기존 작업은 보존했습니다. Cap이 서비스 작업 트리에서 git status로 상태를 확인하고 현재 브랜치·변경을 백업한 뒤 별도 작업 트리에서 main을 반영하세요. squash 병합으로 갈라졌다면 미병합 변경을 대조해 옮기고 복구 후 재시도하세요.';
   const ancestor=async(a,b)=>{try {await execFn('git',['-C',cwd,'merge-base','--is-ancestor',a,b]);return true;}catch(e){if(e.code===1)return false;throw new Error('서비스 작업 트리 Git 이력 확인 실패. '+recovery);}};
   if(!await ancestor('origin/main','HEAD')){
