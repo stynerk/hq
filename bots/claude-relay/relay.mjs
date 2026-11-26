@@ -5,7 +5,8 @@ import {fileURLToPath} from 'node:url';
 import {Client, GatewayIntentBits, Partials} from 'discord.js';
 import {Registry,updateFrontmatter,locate} from '../shared/registry.mjs';
 import {classify,ExchangeCounter,chunk,refreshProjectRoute} from '../shared/routing.mjs';
-import {LaneQueue,readJSON,saveJSON,dpapi,readEncryptedToken,importedToken,serviceWorkspace,runClaude,relayInstructions} from './runtime.mjs';
+import {LaneQueue,readJSON,saveJSON,readEncryptedToken,importedToken,serviceWorkspace,runClaude,relayInstructions,claudeCommand,CLAUDE_STOP_GRACE_MS} from './runtime.mjs';
+import {configuredPath,dpapi,isMac,macDiscordToken,readMacEnv} from '../shared/host-settings.mjs';
 import {initHQ,newProject,commitRegistry} from './provision.mjs';
 import {dueRuns,describeSchedules,scheduleChannelId} from '../shared/schedule.mjs';
 import {forwardMessage,startNotice} from '../shared/forward.mjs';
@@ -13,23 +14,32 @@ import {siblingChannels,formatContext,originLine,CONTEXT_FETCH_LIMIT} from '../s
 import {idleDue,recordActivity,recordCheck,isNoop,idlePrompt} from '../shared/idle.mjs';
 import {startWatchdog,discordReady} from '../shared/watchdog.mjs';
 const here=path.dirname(fileURLToPath(import.meta.url));
-const hqRoot=process.env.HQ_ROOT||path.resolve(here,'../..');
-const privateDir=process.env.CLAUDE_PRIVATE_DIR||path.join(here,'private');fs.mkdirSync(privateDir,{recursive:true});
+const settings=isMac?readMacEnv():{};
+const envToken=isMac?macDiscordToken(settings,'CLAUDE_DISCORD_BOT_TOKEN'):null;
+const hqRoot=configuredPath('HQ_ROOT',settings)||path.resolve(here,'../..');
+const privateDir=configuredPath('CLAUDE_PRIVATE_DIR',settings)||path.join(here,'private');fs.mkdirSync(privateDir,{recursive:true});
+const claudeExecutable=configuredPath('CLAUDE_BIN',settings);
+const resolveCommand=()=>claudeCommand({env:{...process.env,CLAUDE_BIN:claudeExecutable}});
 const lock=path.join(privateDir,'relay.pid');
 if(fs.existsSync(lock)){const pid=Number(fs.readFileSync(lock,'utf8'));let live=false;try{process.kill(pid,0);live=true;}catch(e){if(e.code==='EPERM')live=true;}if(live)throw new Error('Claude 릴레이가 이미 실행 중입니다.');fs.unlinkSync(lock);}fs.writeFileSync(lock,String(process.pid),{flag:'wx'});
 process.on('exit',()=>{try{if(fs.readFileSync(lock,'utf8')===String(process.pid))fs.unlinkSync(lock);}catch{}});
 const registry=new Registry(hqRoot);if(registry.get().errors.length)throw new Error(registry.get().errors.join('\n'));
 const configFile=path.join(privateDir,'config.json');const stateFile=path.join(privateDir,'state.json');
-let config=readJSON(configFile,null);const state=readJSON(stateFile,{sessions:{},seen:[]});state.sessions??={};state.seen??=[];state.schedule??={};state.schedule.runs??={};state.schedule.paused??={};state.contextSeen??={};state.idle??={};
-if(!config?.tokenEncrypted){
-  let token=importedToken(path.join(os.homedir(),'.claude','channels','discord','.env'));
-  if(token)config={tokenEncrypted:await dpapi(token)};
-  else{if(!process.stdin.isTTY)throw new Error('토큰이 없습니다. PowerShell에서 먼저 node bots/claude-relay/relay.mjs를 실행하세요.');config={tokenEncrypted:await readEncryptedToken()};}
-  saveJSON(configFile,config);
+const state=readJSON(stateFile,{sessions:{},seen:[]});state.sessions??={};state.seen??=[];state.schedule??={};state.schedule.runs??={};state.schedule.paused??={};state.contextSeen??={};state.idle??={};
+async function windowsToken() {
+  let config=readJSON(configFile,null);
+  if(!config?.tokenEncrypted){
+    const token=importedToken(path.join(os.homedir(),'.claude','channels','discord','.env'));
+    if(token)config={tokenEncrypted:await dpapi(token)};
+    else{if(!process.stdin.isTTY)throw new Error('토큰이 없습니다. PowerShell에서 먼저 node bots/claude-relay/relay.mjs를 실행하세요.');config={tokenEncrypted:await readEncryptedToken()};}
+    saveJSON(configFile,config);
+  }
+  return dpapi(config.tokenEncrypted,true);
 }
+const discordToken=isMac?envToken:await windowsToken();
 const bot=new Client({intents:[GatewayIntentBits.Guilds,GatewayIntentBits.GuildMessages,GatewayIntentBits.DirectMessages,GatewayIntentBits.MessageContent],partials:[Partials.Channel]});
 const queue=new LaneQueue();for(const id of state.seen)queue.seen.add(id);
-const counter=new ExchangeCounter();const unregistered=new Set();let adminBusy=false;
+const counter=new ExchangeCounter();const unregistered=new Set();let adminBusy=false;let shuttingDown=false;
 const send=async(channel,text,peer=null)=>{const users=(Array.isArray(peer)?peer:[peer]).filter(Boolean);for(const content of chunk(text))await channel.send({content,allowedMentions:{parse:[],users,repliedUser:false}});};
 const sessionKey=(route,m)=>`${route.lane}|${m.channel.id}|${route.mode==='consult'?'consult':'work'}`;
 // HJ 결정(2026-11-19): 같은 프로젝트의 다른 채널에서 지난번 이후 새로 오간 메시지를 가져온다.
@@ -50,12 +60,13 @@ async function siblingContext(route,m,reg){
   return {text,commit:()=>{if(!Object.keys(updates).length)return;state.contextSeen[`${route.lane}|${m.channel.id}`]={...seen,...updates};saveJSON(stateFile,state);}};
 }
 async function runMessage(m,route,signal,extra=''){
+  if(shuttingDown||signal.aborted)return;
   const reg=registry.get();route=refreshProjectRoute(route,reg,m.channel);const key=sessionKey(route,m);const cwd=route.project?(route.mode==='consult'?route.project.localPath:await serviceWorkspace(route.project)):hqRoot;if(signal.aborted)return;
   const system=relayInstructions(route,reg);
-  const ctx=await siblingContext(route,m,reg);if(signal.aborted)return;
+  const ctx=await siblingContext(route,m,reg);if(shuttingDown||signal.aborted)return;
   const head=route.project?originLine(route.place)+'\n':'';
   const prompt=(ctx.text?ctx.text+'\n\n':'')+head+route.text+'\n'+extra;
-  const result=await runClaude({cwd,prompt,system,sessionId:state.sessions[key],consult:route.mode==='consult',signal});
+  const result=await runClaude({cwd,prompt,system,sessionId:state.sessions[key],consult:route.mode==='consult',signal,resolveCommand});
   if(signal.aborted)return;ctx.commit();if(result.session_id){state.sessions[key]=result.session_id;saveJSON(stateFile,state);}
   // 무응답 점검에서 할 일이 없으면 아무것도 올리지 않는다.
   if(route.idle&&isNoop(result.result))return;
@@ -151,9 +162,38 @@ bot.once('clientReady',()=>{
   const now=Date.now();for(const p of registry.get().projects)if(p.idle)state.idle[p.slug]=recordActivity(state.idle[p.slug],now);saveJSON(stateFile,state);
   scheduleTimer=setInterval(()=>{void scheduleTick().catch(e=>console.error('예약 점검 확인 실패: '+e.message));void idleTick().catch(e=>console.error('무응답 점검 확인 실패: '+e.message));},30000);
 });
-bot.once('clientReady',()=>{if(registry.get().claudeBotId!==bot.user.id)console.warn('Claude bot identity differs from registry; updating to authenticated bot ID.');const file=path.join(hqRoot,'config','discord.md');updateFrontmatter(file,d=>{d.bots.claude_relay.user_id=bot.user.id;d.bots.claude_relay.verified=true;});registry.reload();console.log('Claude relay connected.');});
+bot.once('clientReady',()=>{
+  if (isMac) {
+    if (registry.get().claudeBotId !== bot.user.id) {
+      console.error('Claude bot identity differs from registry.');
+      shutdown(1);
+      return;
+    }
+  } else {
+    if(registry.get().claudeBotId!==bot.user.id)console.warn('Claude bot identity differs from registry; updating to authenticated bot ID.');
+    const file=path.join(hqRoot,'config','discord.md');
+    updateFrontmatter(file,d=>{d.bots.claude_relay.user_id=bot.user.id;d.bots.claude_relay.verified=true;});
+    registry.reload();
+  }
+  console.log('Claude relay connected.');
+});
 bot.on('messageCreate',m=>{void handle(m).catch(e=>send(m.channel,e.message).catch(()=>{}));});bot.on('error',()=>console.error('Discord connection error.'));
-const shutdown=()=>{clearInterval(scheduleTimer);for(const lane of queue.lanes.keys())queue.stop(lane);bot.destroy();process.exit(0);};process.on('SIGINT',shutdown);process.on('SIGTERM',shutdown);
-await bot.login(await dpapi(config.tokenEncrypted,true));
-// 연결이 끊긴 채 살아 있지 않도록 감시한다. 끝내면 run.ps1이 다시 띄운다.
-startWatchdog({isReady:()=>discordReady(bot),exit:()=>{clearInterval(scheduleTimer);for(const lane of queue.lanes.keys())queue.stop(lane);bot.destroy();process.exit(1);}});
+let watchdog;
+function shutdown(code=0) {
+  if (shuttingDown) return;
+  shuttingDown=true;
+  clearInterval(scheduleTimer);
+  watchdog?.stop();
+  const active=[...queue.lanes.keys()].map(lane=>queue.stop(lane)).some(Boolean);
+  bot.destroy();
+  if (isMac && active) setTimeout(()=>process.exit(code),CLAUDE_STOP_GRACE_MS + 250);
+  else process.exit(code);
+}
+process.on('SIGINT',()=>shutdown());
+process.on('SIGTERM',()=>shutdown());
+try { await bot.login(discordToken); }
+catch {
+  bot.destroy();
+  throw new Error('Discord 연결을 시작할 수 없습니다. 토큰과 연결 설정을 확인하세요.');
+}
+watchdog=startWatchdog({isReady:()=>discordReady(bot),exit:()=>shutdown(1)});

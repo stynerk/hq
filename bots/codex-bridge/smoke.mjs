@@ -1,9 +1,15 @@
-import { AppServer } from './rpc.mjs';
-const rpc = new AppServer();
+import { fileURLToPath } from 'node:url';
+import { AppServer, codexCommand } from './rpc.mjs';
+import { configuredPath, isMac, readMacEnv } from '../shared/host-settings.mjs';
+
+const settings = isMac ? readMacEnv() : {};
+const cwd = configuredPath('HQ_ROOT', settings) || fileURLToPath(new URL('../../', import.meta.url));
+const command = codexCommand({env: {...process.env, CODEX_EXECUTABLE: configuredPath('CODEX_EXECUTABLE', settings)}});
+const rpc = new AppServer(command);
 let timer;
 try {
   await rpc.initialize();
-  const {thread} = await rpc.request('thread/start', {cwd: 'C:/Users/styne/orca/OurAdventure', sandbox: 'read-only', approvalPolicy: 'never', ephemeral: true});
+  const {thread} = await rpc.request('thread/start', {cwd, sandbox: 'read-only', approvalPolicy: 'never', ephemeral: true});
   const messages = [];
   const completed = new Promise((resolve, reject) => {
     timer = setTimeout(() => reject(new Error('Generation timed out')), 90000);

@@ -1,7 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
-import { AppServer, chunks, isOwnerDM, channelInput, conversationKey, trustedHandoff } from './rpc.mjs';
+import path from 'node:path';
+import { AppServer, codexCommand, chunks, isOwnerDM, channelInput, conversationKey, trustedHandoff } from './rpc.mjs';
+
+test('Codex honors explicit executable paths, uses PATH on macOS and preserves Windows npm discovery', () => {
+  const configured = '/Applications/Codex Tools/codex';
+  assert.deepEqual(codexCommand({platform: 'darwin', env: {CODEX_EXECUTABLE: configured}}), [configured, []]);
+  assert.deepEqual(codexCommand({platform: 'darwin', env: {}}), ['codex', []]);
+  const env = {APPDATA: 'C:\\Users\\example\\App Data'};
+  const root = path.win32.join(env.APPDATA, 'npm/node_modules/@openai/codex');
+  const native = path.win32.join(root, 'node_modules/@openai/codex-win32-x64/vendor/x86_64-pc-windows-msvc/bin/codex.exe');
+  assert.deepEqual(codexCommand({platform: 'win32', env, exists: file => file === native}), [native, []]);
+  assert.deepEqual(codexCommand({platform: 'win32', env, exists: () => false}), [process.execPath, [path.win32.join(root, 'bin/codex.js')]]);
+});
 
 test('only the allowlisted PM bot can hand off, with mention and keyword, in allowlisted channels', () => {
   const pm = 'pmbot', me = '123', ch = 'c';
