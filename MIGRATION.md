@@ -14,6 +14,18 @@
 | 5 | 처음부터 끝까지 검증 | onemorestep 완료 (HANDOFF_SETUP §5-3 전 항목 통과, 아래 기록) |
 | 6 | Our Adventure를 표준 구조로 이전하고 전환 | 완료 (2026-11-17, Tony·Cap. ouradventure #33~#35, PR #32·#49). 스킬 이전은 보류 |
 
+## 맥미니 이전 (2026-11-26)
+
+봇 호스트를 Windows PC에서 Mac mini(macOS, PM2)로 옮겼다. 아래 3단계의 Windows 경로·작업 스케줄러 항목은 맥미니에서 PM2(hq #27, PR #31)로 대체됐다.
+
+| 항목 | 판정 | 근거 |
+|---|---|---|
+| Tony·Cap 응답 | 통과 | 11-26 #hq에서 둘 다 답함 (HJ 확인) |
+| PM2 두 앱 `tony`·`cap` online | 통과 | 11-26 `pm2 ls`: 둘 다 online, 재시작 1회(PR #32 반영 재시작) |
+| git push·PR 생성 | 통과 | `gh auth setup-git`, git 사용자 정보 설정(HJ) 뒤 PR #32·#34 생성 |
+| 서비스 작업 트리 검증 | 수정 | `/var` → `/private/var` 심볼릭 링크로 실패, hq #33·PR #34 |
+| 재부팅 뒤 자동 시작, 중복 응답 0건 | 미확인 | `pm2 startup`·`pm2 save` 뒤 재부팅 1회 필요 |
+
 ## 6단계: Our Adventure (원래 2단계)
 
 - [x] 미커밋 변경을 `backup/2026-11-16-local` 브랜치에 커밋하고 push, 본 폴더를 `main`으로 전환 (Cap, #33: 184개 파일)
