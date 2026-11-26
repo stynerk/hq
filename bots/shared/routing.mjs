@@ -99,11 +99,16 @@ export function classify(m, {self, reg, repliesToSelf = false, exchangeCount = 0
   if (reg.alertsChannelId && chId === reg.alertsChannelId) return ignore('alerts');
   if (reg.archiveCategoryId && String(ch.parentId) === reg.archiveCategoryId) return ignore('archive');
 
-  // #hq: 총괄(Claude)만 답한다.
+  // #hq: HJ의 글에만 답한다. 총괄(Claude)이 기본이고, Cap(Codex)은 불렸을 때만 hq 읽기 전용으로 답한다(HJ 지시 2026-11-26).
+  // 봇끼리는 #hq에서 주고받지 않는다(인계는 dev 스레드).
   if (reg.hqChannelId && (chId === reg.hqChannelId || String(ch.parentId) === reg.hqChannelId)) {
-    if (self !== 'claude' || !isOwner) return ignore('hq-channel');
-    if (text.startsWith('!')) return {kind: 'command', text, scope: 'hq'};
-    return {kind: 'chat', lane: 'hq', role: 'hq-lead', project: null, mode: 'owner', text: ownerText};
+    if (!isOwner) return ignore('hq-channel');
+    const calledSelf = mentions(raw, selfId) || repliesToSelf || (self === 'codex' && /^!codex(\s|$)/i.test(raw));
+    const calledPeer = mentions(raw, peerId);
+    if (self === 'claude' ? (!calledSelf && calledPeer) : !calledSelf) return ignore('owner-not-for-me');
+    const cleaned = self === 'codex' ? text.replace(/^!codex(\s|$)/i, '').trim() : text;
+    if (cleaned.startsWith('!')) return {kind: 'command', text: cleaned, scope: 'hq'};
+    return {kind: 'chat', lane: 'hq', role: self === 'claude' ? 'hq-lead' : 'hq-reader', project: null, mode: 'owner', text: cleaned || ownerText};
   }
 
   const where = locate(reg, ch);
