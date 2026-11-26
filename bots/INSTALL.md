@@ -91,24 +91,40 @@ fi
 chmod 600 bots/.env
 ```
 
-`bots/.env`를 편집해 두 봇의 별도 토큰과 경로를 설정한다. PM2는 각 앱에 `bots/.env` 경로만 전달한다. 각 봇이 시작할 때 그 파일을 직접 읽는다. 파일은 봇 실행 사용자가 소유한 권한 `0600` 일반 파일이어야 한다. 토큰은 파일에서 각 봇으로만 읽으며 PM2의 앱 환경이나 CLI 자식 프로세스의 환경으로 내보내지 않는다. 파일 변경은 아래 재시작 명령으로 반영한다.
+`bots/.env`를 편집해 운영할 봇의 별도 토큰과 경로를 설정한다. PM2는 각 앱에 `bots/.env` 경로만 전달한다. 각 봇이 시작할 때 그 파일을 직접 읽는다. 파일은 봇 실행 사용자가 소유한 권한 `0600` 일반 파일이어야 한다. 토큰은 파일에서 각 봇으로만 읽으며 PM2의 앱 환경이나 CLI 자식 프로세스의 환경으로 내보내지 않는다. 파일 변경은 아래 재시작 명령으로 반영한다.
 
 `CODEX_EXECUTABLE`과 `CLAUDE_BIN`을 비워 두면 PM2 프로세스가 상속한 `PATH`에서 각각 `codex`, `claude`를 찾는다. 부팅 환경에 CLI 디렉터리가 없다면 해당 실행 파일의 절대 경로를 `bots/.env`에 지정한다. 공백이 있는 경로는 예시처럼 따옴표로 감싼다. 경로 설정은 프로세스 환경 변수가 `bots/.env` 값보다 우선한다.
 
 Codex는 기본적으로 `~/Library/Application Support/orca/codex-accounts`에서 Business 계정을 탐색한다. `CODEX_ACCOUNTS_ROOT`를 설정하면 저장된 `routing.json`의 `managedAccountsRoot`보다 우선한다. 계정 경로가 다른 Windows의 `routing.json`은 복사하지 않는다. 새 파일 첫 시작에는 Business 계정을 자동으로 고르고, 한도 오류가 나면 같은 루트에서 탐색한 다음 Business 계정을 사용해 `profiles.business.home`을 갱신한다. 계정 순서를 직접 관리하려면 `profiles.business.homes`에 macOS 계정 홈의 절대 경로를 순서대로 적는다. 명시적으로 설정한 프로필의 계정 홈과 목록이 자동 탐색보다 우선한다.
 
-## 3. 두 앱 시작
+## 3. 봇 시작
 
 ```sh
 cd bots
-pm2 start ecosystem.config.cjs
+pm2 start ecosystem.config.cjs --only tony,cap
 ```
 
-PM2의 앱 이름은 Claude 릴레이가 `tony`, Codex 브리지가 `cap`이다.
+PM2의 앱 이름은 Claude 릴레이가 `tony`, Codex 브리지가 `cap`이다. Thanos는 같은 Claude 릴레이 진입점을 사용하는 별도 `thanos` 앱이다.
+
+### Thanos 운영 반영
+
+1. HJ가 `bots/.env`에 Thanos 토큰을 `THANOS_DISCORD_BOT_TOKEN`으로 넣는다. 봇과 채널 ID는 `config/discord.md`에서 읽는다. 제한 모드를 지원하는 Claude Code 2.1.248 이상을 사용한다.
+2. HJ가 병합 후 운영 체크아웃을 갱신하고, 등록된 채널에서 Thanos가 채널을 보고 메시지를 보낼 수 있는지 확인한다. Thanos는 Message Content Intent 없이 직접 멘션된 메시지를 받는다.
+3. 저장소 루트에서 아래 명령으로 Tony 라우팅을 반영하고 Thanos 앱을 시작한다.
+
+```sh
+git pull --ff-only
+pm2 restart tony
+pm2 start bots/ecosystem.config.cjs --only thanos
+pm2 save
+```
+
+4. HJ가 등록된 `#hq`와 활성 프로젝트 본문에서 각각 한 번 Thanos를 멘션하고, 해당 채널의 Thanos 응답을 확인한다. `#thanos`에서도 직접 멘션으로 부른다. 멘션 없는 메시지, dev 스레드의 멘션에는 Thanos 응답이 없어야 한다. Thanos만 호출하면 Tony는 기본 응답을 보내지 않는다.
+5. 아래 부팅 시작 안내에 따라 등록한 뒤, HJ가 재부팅 후 `pm2 status`에서 `thanos`가 `online`인지 확인한다. Issue 또는 PR에 응답과 재부팅 후 상태의 증거를 남긴다.
 
 ## 4. 부팅 시 시작 등록
 
-운영 전환 시 HJ가 두 앱을 실행한 사용자로 현재 목록을 저장하고 macOS의 부팅 시작을 등록한다. `pm2 startup`이 명령을 출력하면 해당 명령을 실행한다.
+운영 전환 시 HJ가 앱을 실행한 사용자로 현재 목록을 저장하고 macOS의 부팅 시작을 등록한다. `pm2 startup`이 명령을 출력하면 해당 명령을 실행한다.
 
 ```sh
 pm2 save
