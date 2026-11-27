@@ -90,6 +90,8 @@ export function loadRegistry(hqRoot, {platform = process.platform} = {}) {
     guildId: str(discord.guild_id),
     claudeBotId: str(discord.bots?.claude_relay?.user_id),
     codexBotId: str(discord.bots?.codex_bridge?.user_id),
+    thanosBotId: str(discord.bots?.thanos?.user_id),
+    thanosChannelId: str(discord.channels?.thanos),
     hqChannelId: str(discord.channels?.hq),
     alertsChannelId: str(discord.channels?.hq_alerts),
     archiveCategoryId: str(discord.categories?.archive),

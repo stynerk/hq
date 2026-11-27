@@ -14,6 +14,11 @@ bots:
     user_id: "1563059804082282516"
     verified: true
     role: CTO Cap. 모든 프로젝트의 개발PM (옛 이름 Codex_bot, 2026-11-17 변경)
+  thanos:
+    name: Thanos
+    user_id: "1575614378927980544"
+    verified: true
+    role: CBO/CMO Thanos.
   retiring:
     - name: PM_Sora
       user_id: "1570101648054034522"
@@ -22,6 +27,7 @@ bots:
 channels:
   hq: "1571771762578825298"
   hq_alerts: "1571771764462321744"
+  thanos: "1575616902363881522"
 categories:
   hq: "1571771756908253295"
   projects: "1571771758778777731"
@@ -44,6 +50,8 @@ project_channels:
 서버, 사람, 봇의 ID는 여기에만 적는다. 다른 문서와 에이전트는 이 파일을 읽는다. 채팅 기록을 보고 ID를 추정하지 않는다(LEARNINGS 2026-11-12: 소라가 자기 ID를 Cap의 것으로 착각).
 
 프로젝트 채널 ID는 [projects/](../projects/)의 각 파일에 있다.
+
+Thanos는 등록된 `#thanos`, `#hq`, 활성 프로젝트 본문에서 HJ 또는 Tony의 직접 멘션에만 답한다.
 
 ## 확인 상태
 

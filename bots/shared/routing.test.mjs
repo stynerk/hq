@@ -280,3 +280,54 @@ test('peer bot handoffs outside the registered dev thread never run', () => {
   message.channel={id:'dev',parentId:'main'};
   assert.equal(classify(message,{self:'codex',reg}).mode,'execute');
 });
+
+test('Thanos answers explicit HJ or Tony calls in eligible main channels only', () => {
+  const project = {slug: 'active', status: 'active'};
+  const reg = {
+    ownerId: '1', claudeBotId: '2', codexBotId: '3', thanosBotId: '4', guildId: '5',
+    hqChannelId: '10', thanosChannelId: '11', alertsChannelId: '12', archiveCategoryId: '13',
+    byChannel: new Map([
+      ['20', {kind: 'main', project}],
+      ['21', {kind: 'dev', project}],
+      ['30', {kind: 'main', project: {status: 'paused'}}],
+      ['31', {kind: 'main', project: {status: 'archived'}}],
+    ]),
+  };
+  const message = {author: {id: '1', bot: false}, guildId: '5', content: '<@4> 가격?', channel: {id: '20'}};
+  const route = changes => classify({...message, ...changes}, {self: 'thanos', reg, repliesToSelf: true});
+  for (const id of ['10', '11', '20']) {
+    for (const author of [{id: '1', bot: false}, {id: '2', bot: true}]) {
+      assert.deepEqual(route({channel: {id}, author}), {
+        kind: 'chat', lane: id, text: '가격?', project: id === '20' ? project : undefined,
+      });
+    }
+  }
+  assert.equal(route({content: '<@!4> 가격?'}).kind, 'chat');
+  for (const changes of [
+    {guildId: '6'}, {guildId: null}, {webhookId: 'x'}, {content: '가격?'}, {content: '<@4>'},
+    {content: '<@4> !status'}, {author: {id: '2', bot: false}}, {author: {id: '1', bot: true}},
+    {author: {id: '3', bot: true}}, {author: {id: '4', bot: true}}, {author: {id: '9', bot: false}},
+    {channel: {id: '12'}}, {channel: {id: '20', parentId: '13'}},
+    {channel: {id: '21', parentId: '20'}}, {channel: {id: '22', parentId: '20'}},
+    {channel: {id: '22', parentId: '10'}}, {channel: {id: '22', parentId: '11'}},
+    {channel: {id: '30'}}, {channel: {id: '31'}}, {channel: {id: '99'}},
+  ]) assert.equal(route(changes).kind, 'ignore', JSON.stringify(changes));
+  assert.equal(classify(message, {self: 'thanos', reg: {...reg, thanosBotId: null}}).kind, 'ignore');
+});
+
+test('Tony defers to Thanos in main channels and keeps explicit Tony and dev routes', () => {
+  const project = {slug: 'active', status: 'active'};
+  const reg = {
+    ownerId: '1', claudeBotId: '2', codexBotId: '3', thanosBotId: '4', guildId: '5', hqChannelId: '10',
+    byChannel: new Map([['20', {kind: 'main', project}], ['21', {kind: 'dev', project}]]),
+  };
+  const route = (channelId, content, author = {id: '1', bot: false}) =>
+    classify({guildId: '5', channel: {id: channelId}, author, content}, {self: 'claude', reg});
+  for (const id of ['10', '20']) {
+    assert.equal(route(id, '<@4> 가격?').kind, 'ignore');
+    assert.equal(route(id, '<@4> <@2> 둘 다').kind, 'chat');
+    assert.equal(route(id, '일반 질문').kind, 'chat');
+    assert.equal(route(id, '<@2> 후속 질문', {id: '4', bot: true}).kind, 'ignore');
+  }
+  assert.equal(route('21', '<@4> 검토').kind, 'chat');
+});

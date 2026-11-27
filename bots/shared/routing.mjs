@@ -69,16 +69,38 @@ export class ExchangeCounter {
   warnOnce(x) { const id = this.key(x); if (this.warned.has(id)) return false; this.warned.add(id); return true; }
 }
 
+export function thanosMentionChannel(reg, channel) {
+  if (!channel || channel.isThread?.()) return false;
+  if (reg.alertsChannelId && channel.id === reg.alertsChannelId) return false;
+  if (reg.archiveCategoryId && channel.parentId === reg.archiveCategoryId) return false;
+  const where = locate(reg, channel);
+  if (where && (where.kind !== 'main' || where.project.status !== 'active')) return false;
+  return channel.id === reg.hqChannelId || channel.id === reg.thanosChannelId || where?.kind === 'main';
+}
+
+function classifyThanos(m, reg) {
+  if (!reg.thanosBotId || m.author.id === reg.thanosBotId || !reg.guildId || String(m.guildId) !== reg.guildId || !thanosMentionChannel(reg, m.channel)) return {kind: 'ignore'};
+  const fromOwner = m.author.id === reg.ownerId && !m.author.bot;
+  const fromTony = m.author.id === reg.claudeBotId && m.author.bot;
+  const raw = m.content || '';
+  if ((!fromOwner && !fromTony) || !mentions(raw, reg.thanosBotId)) return {kind: 'ignore'};
+  const text = stripMention(raw, reg.thanosBotId);
+  if (!text || text.startsWith('!')) return {kind: 'ignore'};
+  const project = locate(reg, m.channel)?.project;
+  return {kind: 'chat', lane: String(m.channel.id), text, project};
+}
+
 /**
  * @param m 디스코드 메시지 비슷한 객체: {author:{id,bot}, webhookId, guildId, channel:{id,parentId}, content, attachments}
- * @param ctx {self: 'claude'|'codex', reg, repliesToSelf, exchangeCount}
+ * @param ctx {self: 'claude'|'codex'|'thanos', reg, repliesToSelf, exchangeCount}
  * @returns {kind: 'ignore'|'unregistered'|'loop-limit'|'command'|'chat', ...}
  */
 export function classify(m, {self, reg, repliesToSelf = false, exchangeCount = 0}) {
-  const selfId = self === 'claude' ? reg.claudeBotId : reg.codexBotId;
-  const peerId = self === 'claude' ? reg.codexBotId : reg.claudeBotId;
   const ignore = reason => ({kind: 'ignore', reason});
   if (!m?.author || m.webhookId) return ignore('webhook');
+  if (self === 'thanos') return classifyThanos(m, reg);
+  const selfId = self === 'claude' ? reg.claudeBotId : reg.codexBotId;
+  const peerId = self === 'claude' ? reg.codexBotId : reg.claudeBotId;
   if (m.author.id === selfId) return ignore('self');
   const raw = (m.content || '').trim();
   const text = stripMention(raw, selfId);
@@ -103,6 +125,8 @@ export function classify(m, {self, reg, repliesToSelf = false, exchangeCount = 0
   // 봇끼리는 #hq에서 주고받지 않는다(인계는 dev 스레드).
   // 단, #hq 아래의 등록된 dev 스레드(hq 프로젝트)는 프로젝트 dev 스레드와 같이 처리한다(HJ 결정 2026-11-26).
   const where = locate(reg, ch);
+  const calledThanos = mentions(raw, reg.thanosBotId) && thanosMentionChannel(reg, ch);
+  if (isOwner && self === 'claude' && calledThanos && !mentions(raw, selfId) && !repliesToSelf) return ignore('owner-not-for-me');
   if (reg.hqChannelId && where?.kind !== 'dev' && (chId === reg.hqChannelId || String(ch.parentId) === reg.hqChannelId)) {
     if (!isOwner) return ignore('hq-channel');
     const calledSelf = mentions(raw, selfId) || repliesToSelf || (self === 'codex' && /^!codex(\s|$)/i.test(raw));
